@@ -400,13 +400,19 @@ erDiagram
 |---|---|---|
 | `PENDING` | 待接单 | `ACCEPT`(T2) `CANCEL`(T3) `EXPIRE`(T4) |
 | `IN_PROGRESS` | 进行中 | `PICKED_UP`/`ON_THE_WAY`(**T5** 自环) `NOTE`(**T6** 自环，留备注) `DELIVER`(**T7**) `REQUEST_CANCEL`（自环） `APPROVE_CANCEL`(**T8**) `REJECT_CANCEL`（自环） `CANCEL_LOST`(**T17**，无进度+45min) `DISPUTE_OPENED`(**T16**，有进度+45min) `URGE` |
-| `DELIVERED` | 待确认 | `CONFIRM`(**T9**) `AUTO_CONFIRM`(**T10**) `DISPUTE_OPENED`(**T11**) `PICKED_UP`/`ON_THE_WAY`/`DELIVER`（**补丁 B**：冻结期间只补证据、不改 status） |
-| `COMPLETED` | 已完成 | `REVIEW`（自环） `DISPUTE_OPENED`(**T12**，48h 内) |
+| `DELIVERED` | 待确认 | `CONFIRM`(**T9**) `AUTO_CONFIRM`(**T10**) `DISPUTE_OPENED`(**T11**) |
+| `COMPLETED` | 已完成 | `DISPUTE_OPENED`(**T12**，48h 内)　※评价不产生 progress 事件，载体是 `reviews` 表 |
 | `DISPUTED` | 进行中（**挂起态、非终态**，BR-34） | `ARBITRATE_FREE`(**T13**/**T14**，无责→回 `pre_dispute_status`) `ARBITRATE_LIABLE`(**T15**，担责→CANCELLED)；**补丁 B**：`PICKED_UP`/`ON_THE_WAY`/`DELIVER` 只写事件 |
 | `CANCELLED` | 已取消 | —（终态） |
 | `EXPIRED` | 已取消 | —（终态） |
 
-**progress.action 全集（18 个）**：`CREATE / ACCEPT / PICKED_UP / ON_THE_WAY / NOTE / DELIVER / CONFIRM / AUTO_CONFIRM / REQUEST_CANCEL / APPROVE_CANCEL / REJECT_CANCEL / CANCEL / CANCEL_LOST / EXPIRE / DISPUTE_OPENED / ARBITRATE_FREE / ARBITRATE_LIABLE / FORCE_CLOSE`
+**progress.action 全集（19 个）**：`CREATE / ACCEPT / PICKED_UP / ON_THE_WAY / NOTE / DELIVER / CONFIRM / AUTO_CONFIRM / REQUEST_CANCEL / APPROVE_CANCEL / REJECT_CANCEL / CANCEL / CANCEL_LOST / EXPIRE / DISPUTE_OPENED / ARBITRATE_FREE / ARBITRATE_LIABLE / FORCE_CLOSE / URGE`
+
+> **勘误（2026-10-26）**：
+> 1. `URGE`（催单）原未列入全集，但 FR-FULFILL-05 要求「每单最多 2 次」且需可审计、可举证，次数放 Redis 会在重启时丢失 → **加入全集，18 → 19**；`(IN_PROGRESS, URGE)` 为自环，守卫 `actor_id = publisher_id` 且 `urge_count < 2`。
+> 2. `REVIEW` 原列在 `COMPLETED` 可执行动作中，但评价的唯一载体是 `reviews` 表（`UNIQUE(order_id, from_id)`），再写一条 progress 事件属于重复事实、会给投影对账引入噪声 → **不纳入 action 全集**。
+> 3. `POST_FREEZE_EVIDENCE`（补丁 B）**仅 `DISPUTED` 生效**。此前 `DELIVERED` 行也列了同样三项，属笔误（`DELIVERED` 本就允许正常 `CONFIRM`，不存在"冻结"）。
+> 4. `orders` 实际为 **31 列**（5.2 表逐行统计），此前任务书写的「30 个字段」有误。
 
 
 **投影规则（用于对账脚本）**：`status = last(progress where action in STATUS_MUTATING).to_status`。写一条 `tests/test_state_machine.py::test_projection_matches_status` 随机生成事件序列校验聚合一致。
