@@ -190,6 +190,11 @@ def create_app() -> FastAPI:
         """
         return JSONResponse(status_code=200, content=ok({"trace_id": get_trace_id()}))
 
+    # ---- 业务路由挂载（T-13 起）----
+    from app.api.v1 import orders as orders_api
+
+    app.include_router(orders_api.router, prefix="/api/v1")
+
     return app
 
 
