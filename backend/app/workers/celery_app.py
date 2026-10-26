@@ -13,7 +13,6 @@ M0 的"五容器 healthy"永远达不到。任务本身在 T-18/T-19/T-24 才填
 from __future__ import annotations
 
 from celery import Celery
-from celery.schedules import crontab
 
 from app.core.config import settings
 
