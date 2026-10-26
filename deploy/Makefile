@@ -45,6 +45,9 @@ test: ## 跑单元测试（不需要数据库）
 test-all: ## 跑全部测试（含集成与并发）
 	$(COMPOSE) exec api pytest
 
+test-integration: ## 跑真库集成测试（连 compose 里的 postgres）
+	$(COMPOSE) exec -e TEST_DATABASE_URL=$$DATABASE_URL api pytest -m integration
+
 lint: ## 静态检查
 	$(COMPOSE) exec api ruff check app tests
 	$(COMPOSE) exec api ruff format --check app tests
