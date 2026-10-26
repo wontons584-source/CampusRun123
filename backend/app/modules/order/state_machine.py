@@ -306,8 +306,11 @@ def guard_grab(
 
     「原子抢占」本身不在这里判 —— 它是 `apply()` 的 CAS `WHERE status='PENDING'`。
     Redis Lua 只是召回期预过滤（ADR-03），DB 才是权威。
+
+    `actor.id is None` 必须挡掉：T2 要把 `actor.id` 写进 `orders.runner_id`，
+    一个没有身份的 RUNNER 会把接单人写成 NULL，等于抢了个没有归属的单。
     """
-    if actor.role is not Role.RUNNER or not actor.is_verified:
+    if actor.role is not Role.RUNNER or not actor.is_verified or actor.id is None:
         return False
     if ctx.runner_id is not None:
         return False
@@ -578,20 +581,40 @@ GuardFn = Callable[..., bool]
 class Trans:
     """一条迁移定义。
 
-    `effects` 只放**事务提交后要派发**的副作用（通知/推送/信誉），
-    而 `orders` 行上的字段写入（`accepted_at` / `delivered_at` /
-    `auto_confirm_due_at` / `pre_dispute_status` / `completed_at`）统一由
-    `status_patch()` 产出 —— 一次事务里同源同刻，禁止在 service 层各写各的（7.4）。
+    ## 两类"副作用"，界别只有一句判据
+
+    **`orders` 本行字段的写入 → 进 `status_patch()`（与 status 同一条 UPDATE）**：
+
+    | in-tx 字段 | 由哪个 action 写 |
+    |---|---|
+    | `runner_id` / `accepted_at` | `ACCEPT` |
+    | `delivered_at` / `auto_confirm_due_at` / `is_late` | `DELIVER` |
+    | `completed_at` / `auto_confirmed` | `CONFIRM` / `AUTO_CONFIRM` |
+    | `pre_dispute_status` / `settle_state='FROZEN'` | `DISPUTE_OPENED` |
+    | `pre_dispute_status` / `settle_state='UNSETTLED'` | `ARBITRATE_FREE` / `ARBITRATE_LIABLE` / 从 DISPUTED 的 `FORCE_CLOSE` |
+    | `cancel_reason` | `CANCEL` / `CANCEL_LOST` / `ARBITRATE_LIABLE` / `FORCE_CLOSE` |
+
+    **`effects` 只放事务提交后派发的外部副作用**（失败不回滚业务）：
+    `notify_both` / `notify_publisher` / `notify_runner` / `notify_peer` / `notify_noop` /
+    `cancel_push` / `enqueue_first_push` / `release_inflight` / `credit_add` /
+    `credit_penalty` / `credit_minus_3` / `open_review` / `reopen_review` /
+    `hide_reviews` / `flag_auto` / `write_audit` / `mark_br33`。
+
+    > **新增 effect 时先问一句：它改的是本行字段还是外部世界？**
+    > 改本行字段的一律进 in-tx。`freeze` / `unfreeze` / `mark_late` 就是踩过这个坑的：
+    > 它们曾被写在这里当"提交后副作用"，若照字面实现，两次事务之间崩一次就会得到
+    > `status=DISPUTED` 但 `settle_state=UNSETTLED`（状态对了、冻结没了），
+    > 或者送达了但 `is_late` 永远是 false —— 而且**不报错**。
     """
 
-    id: str                                        # "T1".."T17" / "SL1" / "PF1" / "AO1"
+    id: str                                        # "T1".."T17" / "SELF-*" / "FREEZE-*" / "FORCE-CLOSE-*"
     kind: TransKind
     from_status: Status | None                     # None = 不存在前置状态（T1）
     actions: tuple[Action, ...]
     to_status: Status | str                        # Status 或 PRE_DISPUTE 哨兵
     actors: frozenset[Role]
     guard: GuardFn
-    effects: tuple[str, ...] = ()
+    effects: tuple[str, ...] = ()                  # **仅外部副作用**，本行字段见 status_patch()
     hint: str = ""                                 # 守卫失败给用户看的话
     summary: str = ""                              # 达人读的迁移描述
 
@@ -690,7 +713,7 @@ _TRANSITIONS_LIST: tuple[Trans, ...] = (
         to_status=Status.DELIVERED,
         actors=frozenset({Role.RUNNER}),
         guard=_last_node_reached,
-        effects=("notify_publisher", "mark_late"),
+        effects=("notify_publisher",),
         hint="还没到最后节点（请先点「已取件」「配送中」）",
         summary="IN_PROGRESS → DELIVERED：标记已送达",
     ),
@@ -738,7 +761,7 @@ _TRANSITIONS_LIST: tuple[Trans, ...] = (
         to_status=Status.DISPUTED,
         actors=frozenset({Role.PUBLISHER, Role.RUNNER}),
         guard=guard_party_single_dispute,
-        effects=("freeze", "hide_reviews", "notify_both"),
+        effects=("hide_reviews", "notify_both"),
         hint="该单已有纠纷记录（同单仅 1 次）",
         summary="DELIVERED → DISPUTED：发起投诉",
     ),
@@ -750,7 +773,7 @@ _TRANSITIONS_LIST: tuple[Trans, ...] = (
         to_status=Status.DISPUTED,
         actors=frozenset({Role.PUBLISHER, Role.RUNNER}),
         guard=guard_party_within_dispute_window,
-        effects=("freeze", "hide_reviews", "notify_both"),
+        effects=("hide_reviews", "notify_both"),
         hint="已超过完成后的 48 小时投诉窗口",
         summary="COMPLETED → DISPUTED：完成后 48h 内投诉",
     ),
@@ -764,7 +787,7 @@ _TRANSITIONS_LIST: tuple[Trans, ...] = (
         to_status=Status.IN_PROGRESS,
         actors=frozenset({Role.ADMIN}),
         guard=guard_admin_free_in_progress,
-        effects=("unfreeze", "reopen_review", "notify_both"),
+        effects=("reopen_review", "notify_both"),
         hint="投诉前状态不是「进行中」，应走 T14",
         summary="DISPUTED → IN_PROGRESS：裁决无责（PRE=IN_PROGRESS）",
     ),
@@ -776,7 +799,7 @@ _TRANSITIONS_LIST: tuple[Trans, ...] = (
         to_status=PRE_DISPUTE,
         actors=frozenset({Role.ADMIN}),
         guard=guard_admin_free_settled,
-        effects=("unfreeze", "reopen_review", "notify_both"),
+        effects=("reopen_review", "notify_both"),
         hint="投诉前状态不在 {DELIVERED, COMPLETED}，应走 T13",
         summary="DISPUTED → pre_dispute_status：裁决无责（PRE=DELIVERED/COMPLETED）",
     ),
@@ -788,7 +811,7 @@ _TRANSITIONS_LIST: tuple[Trans, ...] = (
         to_status=Status.CANCELLED,
         actors=frozenset({Role.ADMIN}),
         guard=guard_admin_liable,
-        effects=("credit_penalty", "unfreeze", "notify_both"),
+        effects=("credit_penalty", "notify_both"),
         hint="仅管理员可裁决",
         summary="DISPUTED → CANCELLED：裁决担责",
     ),
@@ -800,7 +823,7 @@ _TRANSITIONS_LIST: tuple[Trans, ...] = (
         to_status=Status.DISPUTED,
         actors=frozenset({Role.PUBLISHER}),
         guard=guard_silent_45m,
-        effects=("freeze", "notify_both"),
+        effects=("notify_both",),
         hint="接单人尚无进度（请走无责取消）或静默未满 45 分钟",
         summary="IN_PROGRESS → DISPUTED：发单人失联投诉（免举证）",
     ),
@@ -946,12 +969,49 @@ POST_FREEZE_EVIDENCE: Final[frozenset[tuple[Status, Action]]] = frozenset(
     for action in (Action.PICKED_UP, Action.ON_THE_WAY, Action.DELIVER)
 )
 
+#: **允许出现在 `Trans.effects` 里的全部名字**（唯一白名单，`_self_check()` 会校验）。
+#:
+#: 名单之外的任何字符串都会让 import 直接失败 —— 这既防拼写错误
+#: （`notify_publiser` 这种不会报错、只会静默不发通知），也防有人把**本行字段写入**
+#: 重新塞回 effects（`freeze` / `unfreeze` / `mark_late` 已被永久移出，见 `_self_check`）。
+POST_COMMIT_EFFECTS: Final[frozenset[str]] = frozenset(
+    {
+        # 通知类（站内信 + 推送）
+        "notify_both",
+        "notify_publisher",
+        "notify_runner",
+        "notify_peer",
+        "notify_noop",
+        # 推送队列
+        "cancel_push",
+        "enqueue_first_push",
+        # 在途 / 计数（Redis）
+        "release_inflight",
+        "mark_br33",
+        # 信誉
+        "credit_add",
+        "credit_penalty",
+        "credit_minus_3",
+        # 评价
+        "open_review",
+        "reopen_review",
+        "hide_reviews",
+        # 标记与审计
+        "flag_auto",
+        "write_audit",
+    }
+)
+
+#: 曾经被误放进 `effects` 的本行字段写入名。永久禁入 effects。
+_IN_TX_FIELD_EFFECTS: Final[frozenset[str]] = frozenset({"freeze", "unfreeze", "mark_late"})
+
+
 AUXILIARY_TRANSITIONS: Final[tuple[Trans, ...]] = (
     # 5.4：IN_PROGRESS 可执行的协商取消两个自环动作（PRD 未给 T 编号）
     _self_loop(
         Status.IN_PROGRESS,
         Action.REQUEST_CANCEL,
-        frozenset({Role.PUBLISHER, Role.RUNNER}),
+                frozenset({Role.PUBLISHER, Role.RUNNER}),
         "只有订单双方能发起协商取消",
     ),
     _self_loop(
@@ -1214,23 +1274,56 @@ class ApplyResult:
 def status_patch(
     trans: Trans,
     ctx: OrderCtx,
+    actor: Actor,
     action: Action,
     to_status: Status,
     now: datetime.datetime,
     cfg: Thresholds,
     payload: TransitionPayload,
 ) -> dict[str, Any]:
-    """时间戳与挂起态的**唯一写入口**（7.4 `_timestamps` + `restore_status` 的合并）。
+    """`orders` 行字段的**唯一写入口**（7.4 `_timestamps` + `restore_status` 的合并）。
 
     规则（一次事务里同源同刻，禁止 service 层各写各的）：
-    - `ACCEPT`  → `accepted_at = now`
-    - `DELIVER` → `delivered_at = now` **且** `auto_confirm_due_at = now + 24h`
+    - `ACCEPT`  → `accepted_at = now` **且 `runner_id = actor.id`**
+    - `DELIVER` → `delivered_at = now`、`auto_confirm_due_at = now + 24h`、
+      **`is_late = now > deadline`**（BR-23）
     - `CONFIRM` / `AUTO_CONFIRM` → `completed_at = now`；后者另置 `auto_confirmed=true`
-    - `DISPUTE_OPENED` → `pre_dispute_status = 迁移前状态`（BR-35 挂起态）
-    - **出 DISPUTED 一律先清空** `pre_dispute_status` 与 `auto_confirm_due_at`；
+    - `DISPUTE_OPENED` → `pre_dispute_status = 迁移前状态`（BR-35 挂起态）**且
+      `settle_state = 'FROZEN'`**
+    - **出 DISPUTED 一律先清空** `pre_dispute_status` 与 `auto_confirm_due_at`，
+      并**解冻** `settle_state = 'UNSETTLED'`；
       仅当 T14 回 `DELIVERED` 时把 `auto_confirm_due_at` 覆盖为 `now + 24h`（重新起算）
     - 所有取消类 → `cancel_reason = payload.reason`
     - `delivered_at` **永不改写**（K-12：履约时长的唯一基准）
+
+    ## 哪些字段进这里、哪些进 `effects`（新增 effect 前必读）
+
+    判据只有一句：**一个字段如果必须与 `status` 同时成立，就必须在同一条 UPDATE 里写。**
+    - **in-tx fields（本函数，与 status 同一条 UPDATE）**：`runner_id`、`accepted_at`、
+      `delivered_at`、`completed_at`、`auto_confirm_due_at`、`is_late`、`auto_confirmed`、
+      `pre_dispute_status`、`cancel_reason`、`settle_state`。
+    - **post-commit effects（`Trans.effects`，提交后派发，失败不回滚业务）**：
+      通知、推送、信誉分、评价开关、审计、Redis 侧计数/锁。
+    - **新增 effect 时先问一句**：它改的是**本行字段**还是**外部世界**？
+      改本行字段的一律进 in-tx —— 否则两次事务之间崩一次，就会留下
+      "状态对了、约束没了"的单，而且**不报错**（`freeze` / `mark_late` 就是踩过这个坑）。
+
+    ## 为什么 `runner_id` 必须在这里写（真仓储跑起来才发现的 P0）
+
+    5.2 写明「`runner_id` | 抢单后写入」，但在此之前**全代码库没有任何写入点** ——
+    T2 抢完单，`orders.runner_id` 仍是 NULL。三个连锁后果：
+
+    1. T5/T7 的「接单人本人」守卫（`actor.id == ctx.runner_id`）全部拒绝 → 履约走不下去；
+    2. `load_ctx` 的 `has_runner_evidence` 用 `p.actor_id = o.runner_id` 关联，
+       `runner_id` 为 NULL 时**永远匹配不上** → 接单人任何进度都不算证据；
+    3. 于是 **T16（失联投诉）永远不可用、T17（无责取消）永远可用** ——
+       正是 7.4 警告的「东西已在接单人手里、订单却被无责取消」的卷件口子（RSK-11）。
+
+    单测发现不了它：`MemoryOrderRepo` 从不看 `orders` 行，`OrderCtx.runner_id`
+    是测试手填的。这就是"内存替身假通过"的典型样本。
+
+    安全性由 `guard_grab` 兜底（`actor.role is RUNNER` 且 `actor.id is not None`），
+    这里不需要再判一次。
 
     ## 为什么"出 DISPUTED 默认清空"是必需而不是洁癖
 
@@ -1251,10 +1344,16 @@ def status_patch(
         return patch
 
     if action is Action.ACCEPT:
+        # 接单人归属与抢单时刻必须同源同刻写入（同一 UPDATE 的两个列）
+        patch["runner_id"] = actor.id
         patch["accepted_at"] = now
     elif action is Action.DELIVER:
         patch["delivered_at"] = now
         patch["auto_confirm_due_at"] = now + cfg.auto_confirm_delta
+        # BR-23 超时判定：送达时刻晚于 deadline 即为超时。
+        # 用注入的 `now`（= delivered_at）与 `ctx.deadline` 比，**不读 DB 的 now()** ——
+        # 否则测试无法注入时间，超时率也就永远测不准。
+        patch["is_late"] = ctx.deadline is not None and now > ctx.deadline
     elif action in (Action.CONFIRM, Action.AUTO_CONFIRM):
         patch["completed_at"] = now
         if action is Action.AUTO_CONFIRM:
@@ -1263,19 +1362,27 @@ def status_patch(
     if action is Action.DISPUTE_OPENED:
         # 挂起态语义：写「投诉前状态」，裁决无责时按它回滚（T13/T14）
         patch["pre_dispute_status"] = ctx.status
+        # 冻结必须与 DISPUTED 在**同一条 UPDATE** 里：它是"订单当前能不能继续往下走"的
+        # 一部分，不是对外副作用。分两次事务写的话，崩在中间会得到
+        # `status=DISPUTED` 但 `settle_state=UNSETTLED` 的单 —— 状态对了、冻结没了，
+        # 而且不会有任何报错。
+        patch["settle_state"] = "FROZEN"
     elif action in (Action.ARBITRATE_FREE, Action.ARBITRATE_LIABLE):
         # 出 DISPUTED：默认清空（对齐 7.4 restore_status 的默认 patch）
         patch["pre_dispute_status"] = None
         patch["auto_confirm_due_at"] = None
+        # 解冻同理：与状态回滚同一条 UPDATE，保证不变量「settle_state='FROZEN' ⟺ DISPUTED」
+        patch["settle_state"] = "UNSETTLED"
         if action is Action.ARBITRATE_FREE and to_status is Status.DELIVERED:
             # T14 回 DELIVERED：重新起算 24h。**不动 delivered_at**（K-12）
             patch["auto_confirm_due_at"] = now + cfg.auto_confirm_delta
     elif action is Action.FORCE_CLOSE and ctx.status == Status.DISPUTED.value:
         # 管理员从 DISPUTED 强制关闭也是"出 DISPUTED"的一条路径（BR-32 事故兜底）。
-        # 漏掉它会得到一张 status=CANCELLED 却仍带 pre_dispute_status 的单 ——
-        # 5.2 明确该字段"仅 status='DISPUTED' 时有意义"。
+        # 漏掉它会得到一张 status=CANCELLED 却仍带 pre_dispute_status / FROZEN 的单 ——
+        # 5.2 明确该字段"仅 status='DISPUTED' 时有意义"，冻结同理。
         patch["pre_dispute_status"] = None
         patch["auto_confirm_due_at"] = None
+        patch["settle_state"] = "UNSETTLED"
 
     if action in (
         Action.CANCEL,
@@ -1383,7 +1490,7 @@ def apply(
 
     target = resolve_status(chosen, order)
     body = _coerce_payload(payload)
-    patch = status_patch(chosen, order, act, target, moment, cfg, body)
+    patch = status_patch(chosen, order, actor, act, target, moment, cfg, body)
 
     event = ProgressEvent(
         order_id=order.id,
@@ -1445,6 +1552,21 @@ def _self_check() -> None:
         raise RuntimeError("POST_FREEZE_EVIDENCE 与 7.4 不一致")
     if not _TRANSITION_INDEX:
         raise RuntimeError("迁移索引为空")
+
+    # --- effects 白名单：拼写错误与本行字段写入都不许混进来 ---
+    declared = {name for trans in ALL_TRANSITIONS for name in trans.effects}
+    unknown = declared - POST_COMMIT_EFFECTS
+    if unknown:
+        raise RuntimeError(
+            f"effects 里出现未登记的名字 {sorted(unknown)}；"
+            f"只能是 POST_COMMIT_EFFECTS 里的 17 个之一（外部副作用）"
+        )
+    forbidden = declared & _IN_TX_FIELD_EFFECTS
+    if forbidden:
+        raise RuntimeError(
+            f"{sorted(forbidden)} 写的是 orders 本行字段，必须进 status_patch() 与 status "
+            f"同一条 UPDATE，不能当提交后副作用"
+        )
 
 
 _self_check()
