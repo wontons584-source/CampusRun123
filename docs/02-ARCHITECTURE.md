@@ -186,7 +186,7 @@ erDiagram
 | dept / grade | varchar(64)/(8) | | |
 | verify_status | varchar(16) | NOT NULL default 'UNVERIFIED' | `UNVERIFIED/REVIEWING/APPROVED/REJECTED`（FR-AUTH-04） |
 | credit_score | numeric(5,2) | NOT NULL default 100 | BR-25 区间 0–120 |
-| credit_level | varchar(8) | GENERATED | 由分数派生：`EXCELLENT/GOOD/NORMAL/LIMITED`（BR-26） |
+| credit_level | varchar(16) | GENERATED | 由分数派生：`EXCELLENT/GOOD/NORMAL/LIMITED`（BR-26）。**列宽必须 ≥ 9**（`EXCELLENT` 是 9 字符），原先写的 varchar(8) 会让信誉分 ≥110 的用户插入即失败 |
 | status | varchar(12) | NOT NULL default 'ACTIVE' | `ACTIVE/BANNED/DELETED` |
 | token_version | int | NOT NULL default 0 | ADR-05，+1 即全部旧 token 失效 |
 | is_runner_mode | bool | NOT NULL default false | FR-ME-03，召回硬条件 |
@@ -248,7 +248,7 @@ erDiagram
 | expect_minutes | smallint | NOT NULL | 30/60/120/720（今日内→当日23:00） |
 | deadline | timestamptz | NOT NULL | 到期未接 → EXPIRED（BR-09/T4） |
 | status | varchar(12) | NOT NULL, idx | 7 值见 5.4 |
-| settle_state | varchar(8) | NOT NULL default 'UNSETTLED' | `UNSETTLED/SETTLED/FROZEN`（C2：只记状态不记钱） |
+| settle_state | varchar(16) | NOT NULL default 'UNSETTLED' | `UNSETTLED/SETTLED/FROZEN`（C2：只记状态不记钱）。**列宽必须 ≥ 9**（`UNSETTLED` 是 9 字符），原先写的 varchar(8) 会让**任何订单都插不进去** |
 | push_round | smallint | NOT NULL default 0 | 已推轮次，0=未推（BR-14） |
 | last_push_at | timestamptz | | 扩圈扫描依据 |
 | is_late | bool | default false | BR-23 |
@@ -270,7 +270,7 @@ erDiagram
 | action | varchar(20) | NOT NULL | 见 5.4 |
 | from_status / to_status | varchar(12) | NOT NULL | 迁移前后，可重放 |
 | actor_id | bigint | NULL | NULL=系统 |
-| actor_role | varchar(8) | NOT NULL | `PUBLISHER/RUNNER/ADMIN/SYSTEM` |
+| actor_role | varchar(16) | NOT NULL | `PUBLISHER/RUNNER/ADMIN/SYSTEM`。**列宽必须 ≥ 9**（`PUBLISHER` 是 9 字符），原先写的 varchar(8) 会让发单人产生的事件全部写不进去 |
 | note | varchar(200) | | 进度备注/催单/关闭原因 |
 | images | jsonb | default '[]' | 送达凭证（FR-FULFILL-03） |
 | created_at | timestamptz | NOT NULL | |
@@ -413,6 +413,7 @@ erDiagram
 > 2. `REVIEW` 原列在 `COMPLETED` 可执行动作中，但评价的唯一载体是 `reviews` 表（`UNIQUE(order_id, from_id)`），再写一条 progress 事件属于重复事实、会给投影对账引入噪声 → **不纳入 action 全集**。
 > 3. `POST_FREEZE_EVIDENCE`（补丁 B）**仅 `DISPUTED` 生效**。此前 `DELIVERED` 行也列了同样三项，属笔误（`DELIVERED` 本就允许正常 `CONFIRM`，不存在"冻结"）。
 > 4. `orders` 实际为 **31 列**（5.2 表逐行统计），此前任务书写的「30 个字段」有误。
+> 5. **枚举列宽系统性错误（2026-10-26，真库验证时发现）**：`settle_state`、`actor_role`、`credit_level` 原写 `varchar(8)`，但取值 `UNSETTLED`/`PUBLISHER`/`EXCELLENT` 均为 **9 字符**，插入即报 `value too long`。其中 `settle_state` 带默认值，**导致任何订单都写不进去**。三处统一放宽到 `varchar(16)`。在线 DDL 与单元测试都发现不了这类问题（测试替身不校验列宽），**必须在真库上跑最小插入冒烟**。今后新增枚举列，列宽一律 ≥ 16。
 
 
 **投影规则（用于对账脚本）**：`status = last(progress where action in STATUS_MUTATING).to_status`。写一条 `tests/test_state_machine.py::test_projection_matches_status` 随机生成事件序列校验聚合一致。
