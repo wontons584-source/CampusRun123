@@ -1,0 +1,28 @@
+# 统一换行：仓库内存 LF，Windows 检出时按类型还原
+* text=auto eol=lf
+
+# Windows 脚本必须是 CRLF，否则 cmd 解析异常
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 类 Unix 脚本与配置保持 LF
+*.sh text eol=lf
+*.conf text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.mermaid text eol=lf
+
+# 二进制，禁止换行转换与文本 diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# 锁文件在 diff 中折叠，避免噪音
+pnpm-lock.yaml linguist-generated=true
+alembic/versions/*.py linguist-generated=false

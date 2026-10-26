@@ -1,0 +1,103 @@
+# ============================================================
+# CampusRun · .gitignore
+# 原则：依赖、构建产物、本地数据、敏感配置一律不进仓库；
+#       文档、迁移脚本、锁文件、.env.example 必须进。
+# ============================================================
+
+# ---------- 敏感配置与密钥（最高优先级）----------
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials.json
+*.local
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+nosetests.xml
+
+# ---------- Node / 前端 ----------
+node_modules/
+.pnpm-store/
+dist/
+dist-ssr/
+build/
+.vite/
+.turbo/
+.cache/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---------- 数据库与本地数据 ----------
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+deploy/data/
+docker/volumes/
+pgdata/
+redis-data/
+
+# ---------- 运行产物与上传 ----------
+logs/
+*.log
+uploads/
+backend/static/uploads/
+media/
+tmp/
+temp/
+
+# ---------- Docker ----------
+docker-compose.override.yml
+# 注意：deploy/docker-compose.yml 与 *.Dockerfile 必须提交
+
+# ---------- 编辑器与操作系统 ----------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ---------- 工具生成物 ----------
+.workbuddy/
+*.genie
+
+# ---------- 注意 ----------
+# 以下内容禁止加入忽略，必须提交：
+#   backend/alembic/versions/    数据库迁移，缺一个就是线上事故
+#   pnpm-lock.yaml               依赖锁文件
+#   docs/                        设计与验收依据
+#   .env.example                 环境变量模板
