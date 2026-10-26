@@ -99,6 +99,7 @@ class ErrCode:
     POI_NOT_FOUND = 40403
 
     # ---- 409xx 冲突（含并发） ----
+    RESOURCE_CONFLICT = 40900           # 通用唯一冲突（能按约束名细分的走下面几个）
     ORDER_ALREADY_TAKEN = 40901         # BR-17/D7：已被接走（CAS 0 行 / Lua 锁存在）
     INFLIGHT_LIMIT_REACHED = 40902      # BR-16/D8：在途已满 3 单
     ORDER_STATUS_NOT_GRABBABLE = 40903  # BR-17：非 PENDING
@@ -107,6 +108,7 @@ class ErrCode:
     REVIEW_ALREADY_EXISTS = 40906       # BR-27：一单一评价人一次
     DISPUTE_ALREADY_EXISTS = 40907      # BR-28：一单仅 1 次纠纷
     CANCEL_REQUEST_EXISTS = 40908       # 已有待响应的协商取消申请
+    ORDER_NO_CONFLICT = 40909           # order_no 唯一冲突（CR+yyMMdd+6 撞号，重试即可）
 
     # ---- 410xx 已失效 ----
     ORDER_EXPIRED = 41001               # T4：deadline 已过
@@ -149,6 +151,8 @@ CODE_TO_HTTP_STATUS: dict[int, int] = {
     ErrCode.USER_NOT_FOUND: 404,
     ErrCode.POI_NOT_FOUND: 404,
     ErrCode.ORDER_ALREADY_TAKEN: 409,
+    ErrCode.RESOURCE_CONFLICT: 409,
+    ErrCode.ORDER_NO_CONFLICT: 409,
     ErrCode.INFLIGHT_LIMIT_REACHED: 409,
     ErrCode.ORDER_STATUS_NOT_GRABBABLE: 409,
     ErrCode.IDEMPOTENCY_KEY_CONFLICT: 409,

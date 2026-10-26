@@ -334,7 +334,11 @@ class OrderProgress(Base, CreatedAtMixin):
         SmallInteger, nullable=False, comment="单调递增，防乱序"
     )
     action: Mapped[str] = mapped_column(
-        String(20), nullable=False, comment="见 5.4 的 19 个 action"
+        # 列宽 24（不是 5.2 写的 20）：现有 19 个 action 里 `ARBITRATE_LIABLE` 已占 16，
+        # 只剩余量 4；而 action 全集**必然随 M2/M3 扩容**（如 `AUTO_CONFIRM_EXPIRED`
+        # 正好 20 字符，会把余量顶到 0）。这类"枚举全集注定要加值"的列留足余量，
+        # 否则下一次加 action 时挂的不是某一条记录，是所有进度写入。
+        String(24), nullable=False, comment="见 5.4 的 19 个 action"
     )
     # `from_status` / `to_status` 是**最危险的两个列**：每写一条进度事件都要碰它们。
     # `varchar(12)` 装 `IN_PROGRESS`(11) 只剩 1 个字符 —— 加一个更长的状态，

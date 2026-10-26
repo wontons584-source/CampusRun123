@@ -306,7 +306,9 @@ def upgrade() -> None:
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
         sa.Column("order_id", sa.BigInteger(), nullable=False),
         sa.Column("seq", sa.SmallInteger(), nullable=False, comment="单调递增，防乱序"),
-        sa.Column("action", sa.String(length=20), nullable=False,
+        # 列宽 24 而非 20：`ARBITRATE_LIABLE`(16) 在 varchar(20) 下余量只有 4，
+        # 而 action 全集注定随业务扩容（`AUTO_CONFIRM_EXPIRED` 正好 20，会顶到 0）。
+        sa.Column("action", sa.String(length=24), nullable=False,
                   comment="见 5.4 的 18 个 action"),
         # 列宽 16 而非 12：这两列**每条进度事件都要写**，余量 1 等于把所有事件写入
         # 都押在"状态名永不变长"上。
