@@ -1,0 +1,28 @@
+# CampusRun 后端运行时依赖
+# 版本策略：主版本锁死，次版本随补丁走；升级前跑 pytest。
+
+# --- Web 框架 ---
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20          # 表单上传（证件 OCR 提交）
+
+# --- 数据层 ---
+SQLAlchemy==2.0.36
+alembic==1.14.0
+psycopg[binary]==3.2.3            # PostgreSQL 16 驱动（psycopg3）
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# --- 缓存 / 队列 ---
+redis==5.2.1
+celery==5.4.0
+
+# --- 安全与加密 ---
+PyJWT==2.10.1
+cryptography==44.0.0              # AES-GCM：phone_enc / pick_code_enc
+
+# --- 可观测 ---
+structlog==24.4.0
+
+# --- 外部服务 ---
+boto3==1.35.90                    # S3 兼容对象存储（COS/OSS/MinIO）
