@@ -484,9 +484,14 @@ def test_live_schema_matches_model_metadata(conn: sa.Connection) -> None:
 
 
 def test_migration_is_at_head(conn: sa.Connection) -> None:
-    """库里必须已经在 head 修订上（否则跑的是旧 schema）。"""
+    """库里必须已经在 head 修订上（否则跑的是旧 schema）。
+
+    注意：head 前移（如新增迁移）时这里要同步改。可以用 alembic 的 script 目录
+    动态取 head，但那样会引入 alembic runtime 依赖；显式断言当前 head 更直接，
+    漏改会在这里红，提醒迁移测试也要跟着走。
+    """
     revision = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert revision == "0001", f"当前修订 {revision}，期望 0001"
+    assert revision == "0002", f"当前修订 {revision}，期望 0002（head）"
 
 
 def test_generated_column_and_partial_indexes_exist_in_live_db(conn: sa.Connection) -> None:
