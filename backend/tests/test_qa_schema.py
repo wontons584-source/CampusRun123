@@ -375,7 +375,7 @@ def test_b6_varchar_lengths_for_status_and_action() -> None:
     # team-lead 裁定把所有"枚举列余量吃紧"的列统一放宽到 varchar(16)，
     # 详见 tests/test_schema_widths.py 的 HEADROOM_BUDGET 快照。
     assert status_len == 16
-    assert action_len == 20
+    assert action_len == 24
     for status in Status:
         assert len(status.value) <= status_len, status
     for action in PROGRESS_ACTIONS:

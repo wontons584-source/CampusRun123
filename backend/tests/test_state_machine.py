@@ -849,6 +849,7 @@ class _Walk:
     repo: MemoryOrderRepo
     order_id: int = 1
     status: str = Status.PENDING.value
+    runner_id: int | None = None
     last_node: str | None = None
     has_evidence: bool = False
     last_evidence_at: datetime.datetime | None = None
@@ -865,8 +866,9 @@ class _Walk:
         return ctx(
             id=self.order_id,
             status=self.status,
-            # 未接单前没有接单人：否则 T2 的守卫（runner_id 必须为 NULL）永远不过
-            runner_id=None if self.status == Status.PENDING.value else 200,
+            # 接单人来自 T2 的 patch（`runner_id` 由状态机写入，不是手填）；
+            # 未接单前为 None：否则 T2 的守卫（runner_id 必须为 NULL）永远不过
+            runner_id=self.runner_id,
             has_runner_evidence=self.has_evidence,
             last_runner_evidence_at=self.last_evidence_at,
             accepted_at=self.accepted_at,
@@ -888,6 +890,8 @@ class _Walk:
         self.events.append((action, result.to_status))
         if "accepted_at" in patch:
             self.accepted_at = patch["accepted_at"]
+        if "runner_id" in patch:
+            self.runner_id = patch["runner_id"]
         if "delivered_at" in patch:
             self.delivered_at = patch["delivered_at"]
         if "completed_at" in patch:

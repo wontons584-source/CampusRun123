@@ -304,8 +304,8 @@ HEADROOM_BUDGET: dict[str, int] = {
     "disputes.result": 3,
     # 最长值 APPROVED(8) / varchar(16)
     "order_cancel_requests.status": 8,
-    # 最长值 ARBITRATE_LIABLE(16) / varchar(20)
-    "order_progress.action": 4,
+    # 最长值 ARBITRATE_LIABLE(16) / varchar(24) —— 第二轮从 20 放宽，余量 4 → 8
+    "order_progress.action": 8,
     # 第一轮修复（varchar(8) 装不下枚举值）
     "orders.settle_state": 7,
     "order_progress.actor_role": 7,
