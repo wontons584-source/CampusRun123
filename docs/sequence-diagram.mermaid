@@ -1,0 +1,135 @@
+sequenceDiagram
+    autonumber
+    actor P as 发单人(Web)
+    actor R as 接单人(Web)
+    participant API as FastAPI /api/v1
+    participant OS as OrderService
+    participant SM as StateMachine
+    participant PR as PushDispatcher
+    participant RK as RecallKeyResolver
+    participant GEO as Redis GEO
+    participant SC as Scorer
+    participant QG as QuotaGuard
+    participant GL as GrabLock
+    participant IG as InflightGuard
+    participant WK as Celery worker
+    participant DB as PostgreSQL
+
+    Note over P,DB: ① 发单 → 召回键决策 → 定向推送
+    P->>API: POST /orders {type=EXPRESS, from, to, reward, expect_minutes}
+    API->>OS: create(publisher, payload)
+    OS->>DB: INSERT orders(status=PENDING, deadline)
+    OS->>SM: apply(CREATE) → append order_progress(seq=1)
+    OS-->>API: order
+    API->>GEO: GEOADD geo:orders lng lat order_id
+    API->>WK: enqueue push.dispatch(order_id, round=1)
+    API-->>P: 200 {order_no, deadline, hint?}
+
+    WK->>PR: dispatch(order, round=1)
+    PR->>RK: recall_keys(order)
+    RK-->>PR: [(to_lat,to_lng,1000)] · BR-13 代取快递→终点
+    PR->>GEO: GEOSEARCH geo:runners BYRADIUS 1000 ASC WITHDIST COUNT 500
+    GEO-->>PR: [(runner_id, dist) ...] · M ≈ 40-80
+    PR->>PR: pipeline HGETALL u:{uid}:flag + SCARD runner:inflight
+    PR->>PR: 过滤 离线/未认证/在途≥3/受限/已推过
+    PR->>SC: top_n(candidates, order, 20)
+    SC-->>PR: 排序后 20 人（距离衰减+顺路度+信誉+活跃+随机）
+    loop 每个 Top-20 候选人
+        PR->>QG: allow(runner_id) · 3/10min, 10/1h
+        alt 超频控
+            PR->>DB: INSERT push_logs(channel=HALL_ONLY)
+        else 允许
+            PR->>DB: INSERT push_logs(channel=INBOX, score, distance_m)
+            PR->>DB: INSERT notifications(kind=PUSH_NEW_ORDER)
+        end
+    end
+    DB-->>R: 站内信红点 +（M4 订阅消息）
+    R->>API: GET /push/inbox
+    API-->>R: 新单卡片
+
+    Note over P,DB: ② 抢单（三道闸）
+    R->>API: POST /orders/{id}/accept  Idempotency-Key: uuid
+    API->>API: TokenVerifier → require_verified
+    API->>GL: acquire(order_id, uid) · 闸1 Redis Lua, O(1)
+    alt 锁被占
+        GL-->>API: 0
+        API-->>R: 409 40901 手慢了，订单已被接走
+    else 抢到锁
+        GL-->>API: 1
+        API->>IG: advisory_lock(runner:uid) · 按用户串行
+        API->>DB: SELECT count(*) WHERE runner_id=uid AND status IN (IN_PROGRESS,DELIVERED)
+        alt 在途 ≥ 3
+            API->>GL: release()
+            API-->>R: 409 40902 你当前有 3 单进行中
+        else 未超限
+            API->>DB: UPDATE orders SET status=IN_PROGRESS, runner_id=uid WHERE id=? AND status='PENDING' · 闸2 权威 CAS
+            alt rowcount = 0
+                API->>GL: release()
+                API-->>R: 409 40901
+            else rowcount = 1
+                API->>SM: apply(ACCEPT) → append order_progress
+                API->>GEO: ZREM geo:orders order_id
+                API->>DB: INSERT notifications(kind=ACCEPTED) → 发单人
+                API-->>R: 200 {status:IN_PROGRESS, accepted_at}
+            end
+        end
+    end
+
+    Note over P,DB: ③ 履约 → 确认 → 评价（含 24h 自动确认）
+    R->>API: POST /orders/{id}/progress {action=PICKED_UP}
+    API->>SM: apply(PICKED_UP) · IN_PROGRESS 自环
+    SM->>DB: append order_progress(seq=n)
+    SM->>DB: INSERT notifications → 发单人
+    R->>API: POST /orders/{id}/deliver {images}
+    API->>SM: apply(DELIVER) → status=DELIVERED, delivered_at=now(), auto_confirm_due_at=now()+24h
+    API->>DB: INSERT notifications(kind=NEED_CONFIRM)
+
+    alt 发单人 24h 内确认
+        P->>API: POST /orders/{id}/confirm
+        API->>SM: apply(CONFIRM) → COMPLETED, completed_at
+    else 超时未确认
+        WK->>DB: sweep auto_confirm: WHERE status='DELIVERED' AND auto_confirm_due_at <= now()
+        Note over WK: 不读 delivered_at —— 纠纷回滚后它是旧值，会立刻误触发
+        WK->>SM: apply(AUTO_CONFIRM) → COMPLETED, auto_confirmed=true
+    end
+    SM->>DB: INSERT credit_logs(delta=+1) → runner, score_after
+    SM->>DB: INSERT notifications(AUTO_CONFIRMED / CONFIRMED)
+
+    P->>API: POST /orders/{id}/review {rating=5, tags, content}
+    API->>DB: INSERT reviews(direction=P2R) · UNIQUE(order_id, from_id)
+    API->>DB: INSERT credit_logs(delta=+0.5) → runner
+    R->>API: POST /orders/{id}/review {rating=5}
+    API->>DB: INSERT reviews(direction=R2P)
+    API-->>P: 200 双方信誉分已更新（影响下一轮召回权重）
+
+    Note over P,DB: ④ 接单人静默 → BR-35 预警（40min）→ 双出口（T16 投诉 / T17 自助取消，45min）
+    WK->>DB: sweep: WHERE status='IN_PROGRESS' AND accepted_at < now()-40min LIMIT 500
+    SM->>DB: probe_progress(order) → (has_progress, since) · actor_id=runner_id AND action IN RUNNER_EVIDENCE
+    alt 静默 ≥40min 且本单未预警过
+        WK->>DB: SET warn:{order_id} NX EX 7200（Redis 去重，每单 1 次）
+        WK->>R: 站内信 RUNNER_SILENT_WARN「5 分钟后发单人可申请介入」
+    end
+
+    P->>API: POST /orders/{id}/cancel {mode:lost}  或  POST /orders/{id}/dispute
+    API->>SM: apply(CANCEL_LOST) 或 apply(DISPUTE_OPENED)
+    SM->>DB: probe_progress(order) → has_progress / since（发单人的催单/取消申请不计入）
+    alt has_progress = false 且 距抢单 ≥45min → T17 自助取消
+        SM->>DB: UPDATE orders SET status=CANCELLED WHERE id=? AND status='IN_PROGRESS'
+        SM->>DB: credit_logs(-3) + progress(CANCEL_LOST) + release_inflight(uid)
+        API-->>P: 200 {status: CANCELLED}
+    else has_progress = true 且 静默 ≥45min → T16 失联投诉（免举证）
+        SM->>DB: UPDATE orders SET status=DISPUTED, pre_dispute_status='IN_PROGRESS', settle_state=FROZEN
+        SM->>DB: progress(DISPUTE_OPENED) + disputes(reason=RUNNER_LOST)
+        API-->>P: 200 {status: DISPUTED}
+    else 不满足（未满 45min / 出口与进度状态不匹配 / 非发单人）
+        API-->>P: 422 42201（或 403 40310）
+    end
+    Note over API,DB: T16 与 T17 互斥在守卫层：同一时刻只有一支能通过，并发与重放同样进不来
+
+    Note over P,DB: ⑤ 仲裁回流（BR-34 挂起态：DISPUTED 不是终态）
+    API->>SM: apply(ARBITRATE_FREE) · 支持接单人
+    SM->>DB: UPDATE orders SET status=pre_dispute_status, pre_dispute_status=NULL, settle_state=UNSETTLED
+    SM->>DB: 若回 DELIVERED：auto_confirm_due_at=now()+24h（重写，重新起算；delivered_at 不动）
+    Note right of DB: pre=IN_PROGRESS → T13；pre=DELIVERED/COMPLETED → T14 原样回滚（不擅自置 COMPLETED）
+    API->>SM: apply(ARBITRATE_LIABLE) · 支持发单人 / 部分担责
+    SM->>DB: UPDATE orders SET status=CANCELLED, pre_dispute_status=NULL + credit_penalty

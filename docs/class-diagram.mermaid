@@ -1,0 +1,284 @@
+classDiagram
+    direction LR
+
+    class Order {
+        +int id
+        +str order_no
+        +int publisher_id
+        +int|null runner_id
+        +str type
+        +int from_poi_id
+        +int to_poi_id
+        +Decimal from_lat
+        +Decimal from_lng
+        +Decimal to_lat
+        +Decimal to_lng
+        +Decimal reward
+        +str description
+        +list images
+        +bytes|null pick_code_enc
+        +int expect_minutes
+        +datetime deadline
+        +str status
+        +str settle_state
+        +str|null pre_dispute_status
+        +int push_round
+        +datetime|null last_push_at
+        +bool is_late
+        +bool auto_confirmed
+        +datetime|null auto_confirm_due_at
+        +datetime|null accepted_at
+        +datetime|null delivered_at
+        +datetime|null completed_at
+        +int version
+        +datetime created_at
+    }
+
+    class OrderProgress {
+        +int id
+        +int order_id
+        +int seq
+        +str action
+        +str from_status
+        +str to_status
+        +int|null actor_id
+        +str actor_role
+        +str note
+        +list images
+        +datetime created_at
+    }
+
+    class User {
+        +int id
+        +str|null student_no
+        +str nickname
+        +bytes phone_enc
+        +str phone_mask
+        +str verify_status
+        +Decimal credit_score
+        +str credit_level
+        +str status
+        +int token_version
+        +bool is_runner_mode
+        +dict notify_settings
+    }
+
+    class Poi {
+        +int id
+        +int campus_id
+        +str name
+        +str type
+        +Decimal lat
+        +Decimal lng
+        +bool is_active
+    }
+
+    class Review {
+        +int id
+        +int order_id
+        +int from_id
+        +int to_id
+        +str direction
+        +int rating
+        +list tags
+        +str content
+        +bool is_hidden
+        +datetime created_at
+    }
+
+    class Dispute {
+        +int id
+        +int order_id
+        +int initiator_id
+        +str reason
+        +dict evidence
+        +str status
+        +str|null result
+        +str result_note
+        +int|null arbitrator_id
+        +datetime|null resolved_at
+    }
+
+    class CreditLog {
+        +int id
+        +int user_id
+        +Decimal delta
+        +Decimal score_after
+        +str reason_code
+        +int|null order_id
+        +int|null operator_id
+        +str note
+    }
+
+    class PushLog {
+        +int id
+        +int order_id
+        +int runner_id
+        +int round
+        +str channel
+        +int distance_m
+        +Decimal score
+        +bool is_clicked
+        +bool is_grabbed
+    }
+
+    class Notification {
+        +int id
+        +int user_id
+        +str kind
+        +str title
+        +str body
+        +dict payload
+        +datetime|null read_at
+    }
+
+    %% StateMachine.TRANSITIONS：17 条迁移（T1–T17），编号与 01-PRD.md 第 358–379 行逐条对齐
+    %% T5/T6 = IN_PROGRESS 自环（推进节点 / 留备注）；T7 = -> DELIVERED；T8 = 协商取消
+    %% T16 = IN_PROGRESS --DISPUTE_OPENED/guard_silent_45m(有进度+45min)--> DISPUTED
+    %% T17 = IN_PROGRESS --CANCEL_LOST/guard_no_progress_45m(无进度+45min)--> CANCELLED  (-3)
+    %% T13/T14 = DISPUTED --ARBITRATE_FREE--> pre_dispute_status (BR-34 挂起态回滚)
+    %% RUNNER_EVIDENCE = (PICKED_UP, ON_THE_WAY, DELIVER, NOTE) 且 actor_id=order.runner_id —— 「进度记录」唯一定义
+    class StateMachine {
+        +dict TRANSITIONS
+        +tuple RUNNER_EVIDENCE
+        +apply(order, action, actor, payload) Order
+        +can(order, action) bool
+        +project_status(events) str
+        +probe_progress(order) tuple
+        +guard_silent_45m(order, actor) bool
+        +guard_no_progress_45m(order, actor) bool
+    }
+
+    class RecallKeyResolver {
+        +dict _STRATEGY
+        +recall_keys(order) list
+    }
+
+    class Scorer {
+        +strategy: dict weights
+        +score(candidate, order) Decimal
+        +top_n(candidates, order, n) list
+    }
+
+    class CandidateRecall {
+        +recall(order, radius, exclude_uids) list
+        +filter(candidates) list
+    }
+
+    class PushDispatcher {
+        +dispatch(order, round) int
+        +escalate(order) void
+        +degrade(order, runner, reason) void
+    }
+
+    class QuotaGuard {
+        +allow(user_id) bool
+        +incr(user_id) void
+    }
+
+    class GrabService {
+        +GrabLock lock
+        +InflightGuard inflight
+        +accept(order_id, user_id, idem_key) AcceptResult
+    }
+
+    class GrabLock {
+        +acquire(order_id, user_id) int
+        +release(order_id, user_id) void
+    }
+
+    class InflightGuard {
+        +count(user_id) int
+        +advisory_lock(user_id) void
+        +bump_cache(user_id, order_id) void
+    }
+
+    class HallQuery {
+        +list(user_id, filters, cursor) CursorPage
+        +distance_cursor(candidates, last_dist, last_id) list
+    }
+
+    class FulfillService {
+        +append_progress(order_id, action, actor, note, images) Order
+        +deliver(order_id, actor, images) Order
+        +urge(order_id, actor) void
+    }
+
+    class ConfirmService {
+        +confirm(order_id, actor) Order
+        +auto_confirm(order_id) Order
+    }
+
+    class ReviewService {
+        +submit(order_id, from_id, rating, tags, content) Review
+        +hide_by_order(order_id) void
+    }
+
+    class CreditService {
+        +apply(user_id, reason_code, order_id) Decimal
+        +level_of(score) str
+    }
+
+    class DisputeService {
+        +open(order_id, initiator, reason, evidence) Dispute
+        +save_pre_dispute(order) void
+        +freeze(order_id) void
+        +resolve(dispute_id, result, note, admin_id) void
+        +restore_status(order, pre_status) void
+    }
+
+    class VerifyService {
+        +send_email_code(student_no, email) void
+        +verify_by_code(student_no, email, code) User
+        +submit_evidence(user_id, key) Verification
+        +review(verification_id, admin, passed, reason) void
+    }
+
+    class AuthService {
+        +login(provider, credential) TokenPair
+        +refresh(refresh_token) TokenPair
+        +revoke_all(user_id) void
+    }
+
+    class ConfigService {
+        +get(key) Any
+        +set(key, value, admin_id) void
+    }
+
+    class AuditWriter {
+        +write(admin_id, target_type, target_id, action, before, after, note) void
+    }
+
+    User "1" --> "0..*" Order : publishes
+    User "1" --> "0..*" Order : accepts
+    Poi "1" --> "0..*" Order : from/to
+    Order "1" --> "1..*" OrderProgress : append-only
+    Order "1" --> "0..*" Review : has
+    Order "1" --> "0..1" Dispute : at most one
+    Order "1" --> "0..*" PushLog : traced
+    Order "1" --> "0..*" Notification : triggers
+    User "1" --> "0..*" CreditLog : accrues
+    User "1" --> "0..*" Notification : receives
+
+    Order ..> StateMachine : transitions by
+    StateMachine ..> OrderProgress : appends
+    PushDispatcher ..> RecallKeyResolver : uses
+    PushDispatcher ..> CandidateRecall : uses
+    PushDispatcher ..> Scorer : uses
+    PushDispatcher ..> QuotaGuard : checks
+    PushDispatcher ..> Notification : writes
+    GrabService ..> GrabLock : uses
+    GrabService ..> InflightGuard : uses
+    GrabService ..> StateMachine : applies ACCEPT
+    HallQuery ..> Order : reads
+    FulfillService ..> StateMachine : applies
+    ConfirmService ..> StateMachine : applies
+    ConfirmService ..> CreditService : updates
+    ReviewService ..> CreditService : updates
+    DisputeService ..> CreditService : penalizes
+    DisputeService ..> StateMachine : applies
+    VerifyService ..> User : approves
+    AuthService ..> User : issues token
+    ConfigService ..> Scorer : feeds weights
+    PushDispatcher ..> ConfigService : reads params
+    AuditWriter ..> DisputeService : records
