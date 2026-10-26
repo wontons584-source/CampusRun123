@@ -73,7 +73,8 @@ class Dispute(Base, TimestampMixin):
         comment="M1: OPEN → RESOLVED；M3 加 EVIDENCE/ARBITRATING/APPEALED",
     )
     result: Mapped[str | None] = mapped_column(
-        String(14), nullable=True, comment="FOR_PUBLISHER/FOR_RUNNER/PARTIAL"
+        # 列宽 16（不是 5.2 写的 14）：`FOR_PUBLISHER`(13) 在 varchar(14) 下余量只有 1
+        String(16), nullable=True, comment="FOR_PUBLISHER/FOR_RUNNER/PARTIAL"
     )
     result_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     arbitrator_id: Mapped[int | None] = mapped_column(

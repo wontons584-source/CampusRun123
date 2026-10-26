@@ -55,7 +55,8 @@ def upgrade() -> None:
         sa.Column("avatar_url", sa.Text(), nullable=True),
         sa.Column("phone_enc", BYTEA(), nullable=True,
                   comment="AES-GCM 密文，禁止进任何 DTO"),
-        sa.Column("phone_mask", sa.String(length=11), nullable=True,
+        # 列宽 16 而非 11：`138****8888` 恰好 11 字符、余量 0，改一次掩码规则就炸。
+        sa.Column("phone_mask", sa.String(length=16), nullable=True,
                   comment="138****8888，直接供接口返回"),
         sa.Column("dept", sa.String(length=64), nullable=True),
         sa.Column("grade", sa.String(length=8), nullable=True),
@@ -67,7 +68,10 @@ def upgrade() -> None:
                   comment="BR-25 区间 0–120"),
         # GENERATED 列（BR-26）—— autogenerate 生成不出来，手写。
         # 表达式与 app/models/user.py 的 CREDIT_LEVEL_EXPR 同源，禁止在此另写一份。
-        sa.Column("credit_level", sa.String(length=8),
+        # 列宽 16 而非 8：`'EXCELLENT'` 是 9 个字符，5.2 原文的 varchar(8) 装不下
+        # （真库实测 "value too long for type character varying(8)"）。
+        # 生成列上的超长报错指向列宽而非业务规则，排查成本极高，故留足余量。
+        sa.Column("credit_level", sa.String(length=16),
                   sa.Computed(CREDIT_LEVEL_EXPR, persisted=True), nullable=False,
                   comment="GENERATED：EXCELLENT/GOOD/NORMAL/LIMITED（BR-26），禁止应用层写入"),
         sa.Column("status", sa.String(length=12), server_default=sa.text("'ACTIVE'"),
@@ -213,9 +217,13 @@ def upgrade() -> None:
                   comment="30/60/120/720（今日内→当日23:00）"),
         sa.Column("deadline", sa.DateTime(timezone=True), nullable=False,
                   comment="到期未接 → EXPIRED（BR-09/T4）"),
-        sa.Column("status", sa.String(length=12), nullable=False,
+        # 列宽 16 而非 12：`IN_PROGRESS`(11) 在 varchar(12) 下余量只有 1，
+        # 加一个更长的状态会让全站订单写入直接失败。
+        sa.Column("status", sa.String(length=16), nullable=False,
                   comment="7 值见 5.4；索引见 5.3 复合索引"),
-        sa.Column("settle_state", sa.String(length=8),
+        # 列宽 16 而非 8：默认值 `'UNSETTLED'` 是 9 个字符，varchar(8) 会让
+        # **任何 insert into orders 立即失败**（真库实测）。
+        sa.Column("settle_state", sa.String(length=16),
                   server_default=sa.text("'UNSETTLED'"), nullable=False,
                   comment="UNSETTLED/SETTLED/FROZEN（C2：只记状态不记钱）"),
         sa.Column("push_round", sa.SmallInteger(), server_default=sa.text("0"), nullable=False,
@@ -236,7 +244,8 @@ def upgrade() -> None:
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True,
                   comment="T9/T10 完成时刻；只用于终态判定/完成率分母/评价窗口起算（K-12）"),
         sa.Column("cancel_reason", sa.String(length=200), nullable=True),
-        sa.Column("pre_dispute_status", sa.String(length=12), nullable=True,
+        # 存的是订单状态，与 orders.status 同宽
+        sa.Column("pre_dispute_status", sa.String(length=16), nullable=True,
                   comment="BR-35 挂起态语义：进 DISPUTED 时写投诉前状态，裁决无责按此回滚"
                           "（T13/T14），出 DISPUTED 后置 NULL。仅 status='DISPUTED' 时有意义"),
         sa.Column("version", sa.Integer(), server_default=sa.text("0"), nullable=False,
@@ -299,12 +308,16 @@ def upgrade() -> None:
         sa.Column("seq", sa.SmallInteger(), nullable=False, comment="单调递增，防乱序"),
         sa.Column("action", sa.String(length=20), nullable=False,
                   comment="见 5.4 的 18 个 action"),
-        sa.Column("from_status", sa.String(length=12), nullable=False,
+        # 列宽 16 而非 12：这两列**每条进度事件都要写**，余量 1 等于把所有事件写入
+        # 都押在"状态名永不变长"上。
+        sa.Column("from_status", sa.String(length=16), nullable=False,
                   comment="迁移前状态，可重放"),
-        sa.Column("to_status", sa.String(length=12), nullable=False,
+        sa.Column("to_status", sa.String(length=16), nullable=False,
                   comment="迁移后状态，可重放"),
         sa.Column("actor_id", sa.BigInteger(), nullable=True, comment="NULL = 系统"),
-        sa.Column("actor_role", sa.String(length=8), nullable=False,
+        # 列宽 16 而非 8：`'PUBLISHER'` 是 9 个字符，varchar(8) 会让发单人产生的
+        # 所有进度事件写不进去（真库实测）。
+        sa.Column("actor_role", sa.String(length=16), nullable=False,
                   comment="PUBLISHER/RUNNER/ADMIN/SYSTEM"),
         sa.Column("note", sa.String(length=200), nullable=True,
                   comment="进度备注/催单/关闭原因"),
@@ -334,7 +347,8 @@ def upgrade() -> None:
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
         sa.Column("order_id", sa.BigInteger(), nullable=False),
         sa.Column("requester_id", sa.BigInteger(), nullable=False),
-        sa.Column("status", sa.String(length=10), nullable=False,
+        # 列宽 16 而非 10：`APPROVED`(8) 在 varchar(10) 下余量只有 2
+        sa.Column("status", sa.String(length=16), nullable=False,
                   comment="PENDING/APPROVED/REJECTED"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"),
                   nullable=False),
@@ -435,7 +449,8 @@ def upgrade() -> None:
                   comment='{images:[...], text:\"\"} ≤5 图 ≤300 字；T16 免举证'),
         sa.Column("status", sa.String(length=14), nullable=False,
                   comment="M1: OPEN → RESOLVED；M3 加 EVIDENCE/ARBITRATING/APPEALED"),
-        sa.Column("result", sa.String(length=14), nullable=True,
+        # 列宽 16 而非 14：`FOR_PUBLISHER`(13) 在 varchar(14) 下余量只有 1
+        sa.Column("result", sa.String(length=16), nullable=True,
                   comment="FOR_PUBLISHER/FOR_RUNNER/PARTIAL"),
         sa.Column("result_note", sa.String(length=200), nullable=True),
         sa.Column("arbitrator_id", sa.BigInteger(), nullable=True,

@@ -72,7 +72,11 @@ class User(Base, TimestampMixin):
     nickname: Mapped[str] = mapped_column(String(32), nullable=False, comment="默认「同学+尾号4位」")
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     phone_enc: Mapped[bytes | None] = mapped_column(BYTEA, nullable=True, comment="AES-GCM 密文，禁止进任何 DTO")
-    phone_mask: Mapped[str | None] = mapped_column(String(11), nullable=True, comment="138****8888，直接供接口返回")
+    phone_mask: Mapped[str | None] = mapped_column(
+        # 列宽 16（不是 5.2 写的 11）：`138****8888` 恰好 11 个字符，余量为 **0** ——
+        # 等于把掩码格式焊死在"3-4-4"上，改一次规则就炸。
+        String(16), nullable=True, comment="138****8888，直接供接口返回"
+    )
     dept: Mapped[str | None] = mapped_column(String(64), nullable=True)
     grade: Mapped[str | None] = mapped_column(String(8), nullable=True)
     verify_status: Mapped[str] = mapped_column(
@@ -88,7 +92,11 @@ class User(Base, TimestampMixin):
         comment="BR-25 区间 0–120",
     )
     credit_level: Mapped[str] = mapped_column(
-        String(8),
+        # 原 varchar(8) 装不下 `'EXCELLENT'`(9)。**这是最阴的一处**：
+        # 它是 GENERATED 列，任何 `CHECK (... IN ...)` 都扫不到它，
+        # 只有"真的插一个信誉分 ≥110 的用户"才会炸；而且炸在生成列上，
+        # 报错信息指向的是列宽而不是业务规则，排查成本极高。
+        String(16),
         Computed(CREDIT_LEVEL_EXPR, persisted=True),
         nullable=False,
         comment="GENERATED：EXCELLENT/GOOD/NORMAL/LIMITED（BR-26），禁止应用层写入",

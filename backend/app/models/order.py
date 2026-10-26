@@ -170,10 +170,21 @@ class Order(Base, CreatedAtMixin):
         DateTime(timezone=True), nullable=False, comment="到期未接 → EXPIRED（BR-09/T4）"
     )
     status: Mapped[str] = mapped_column(
-        String(12), nullable=False, comment="7 值见 5.4；索引见 5.3 复合索引"
+        # 列宽 16（不是 5.2 写的 12）：varchar(12) 装 `IN_PROGRESS`(11) 只剩 1 个字符，
+        # 一旦 M2 加更长的状态（如 `PARTIALLY_REFUNDED`），**全站订单写入**立刻挂。
+        # 这类"每次写都要碰"的枚举列一律留足余量（当前余量 5）。
+        String(16), nullable=False, comment="7 值见 5.4；索引见 5.3 复合索引"
     )
     settle_state: Mapped[str] = mapped_column(
-        String(8),
+        # 列宽 16 而不是 8：`'UNSETTLED'` 本身就有 9 个字符，而 5.2 原文写的
+        # varchar(8) 会让**任何 insert 直接失败**（它是 DEFAULT，躲不过去）。
+        # 这是"文档写错、只有真库能暴露"的第一类缺陷（单元测试用的内存替身
+        # 不校验列宽，所以 524 个用例全绿也没发现）。
+        # 放宽到 16 的取舍：枚举值长度随业务演进只会变长（如 `PARTIALLY_SETTLED`），
+        # PG 里 varchar(n) 与 text 的存储完全一样、只有长度校验，放宽零成本；
+        # 但**不要改成 text** —— 列宽是最后一道数据校验，去掉它等于允许任意垃圾值
+        # 写进一个语义上只有 3 个取值的列。
+        String(16),
         nullable=False,
         server_default=text("'UNSETTLED'"),
         comment="UNSETTLED/SETTLED/FROZEN（C2：只记状态不记钱）",
@@ -216,7 +227,8 @@ class Order(Base, CreatedAtMixin):
     )
     cancel_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     pre_dispute_status: Mapped[str | None] = mapped_column(
-        String(12),
+        # 存的是订单状态，与 orders.status 同宽（varchar(12) 时余量只有 1）
+        String(16),
         nullable=True,
         comment=(
             "BR-35 挂起态语义：进 DISPUTED 时写投诉前状态，裁决无责按此回滚"
@@ -322,19 +334,26 @@ class OrderProgress(Base, CreatedAtMixin):
         SmallInteger, nullable=False, comment="单调递增，防乱序"
     )
     action: Mapped[str] = mapped_column(
-        String(20), nullable=False, comment="见 5.4 的 18 个 action"
+        String(20), nullable=False, comment="见 5.4 的 19 个 action"
     )
+    # `from_status` / `to_status` 是**最危险的两个列**：每写一条进度事件都要碰它们。
+    # `varchar(12)` 装 `IN_PROGRESS`(11) 只剩 1 个字符 —— 加一个更长的状态，
+    # 挂的不是某一条记录，而是**所有事件写入**（含发单、抢单、送达、投诉）。
+    # 故与 orders.status 同宽 varchar(16)，当前余量 5。
     from_status: Mapped[str] = mapped_column(
-        String(12), nullable=False, comment="迁移前状态，可重放"
+        String(16), nullable=False, comment="迁移前状态，可重放"
     )
     to_status: Mapped[str] = mapped_column(
-        String(12), nullable=False, comment="迁移后状态，可重放"
+        String(16), nullable=False, comment="迁移后状态，可重放"
     )
     actor_id: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, comment="NULL = 系统"
     )
     actor_role: Mapped[str] = mapped_column(
-        String(8), nullable=False, comment="PUBLISHER/RUNNER/ADMIN/SYSTEM"
+        # 原 varchar(8) 装不下 `'PUBLISHER'`(9) —— 发单人产生的任何事件都写不进去。
+        # 同上放宽到 16：`ADMIN`/`SYSTEM`/`RUNNER` 都 ≤6，但 `PUBLISHER` 是 9，
+        # 且将来可能加 `ARBITRATOR`(10) 之类的角色。
+        String(16), nullable=False, comment="PUBLISHER/RUNNER/ADMIN/SYSTEM"
     )
     note: Mapped[str | None] = mapped_column(
         String(200), nullable=True, comment="进度备注/催单/关闭原因"
@@ -399,7 +418,8 @@ class OrderCancelRequest(Base, TimestampMixin):
         nullable=False,
     )
     status: Mapped[str] = mapped_column(
-        String(10), nullable=False, comment="PENDING/APPROVED/REJECTED"
+        # 列宽 16（不是 5.2 写的 10）：varchar(10) 装 `APPROVED`(8) 只剩 2 个字符
+        String(16), nullable=False, comment="PENDING/APPROVED/REJECTED"
     )
 
     __table_args__ = (
