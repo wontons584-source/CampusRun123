@@ -34,10 +34,22 @@ export function isStaleStateError(err: unknown): boolean {
   return err instanceof ApiError && (err.code === 40905 || err.code === 42201);
 }
 
+/**
+ * 少数错误码给专门文案（后端 message 偏工程向，用户看不懂）。
+ * 未命中的码一律用后端返回的 `message`，不要自己编。
+ */
+const CODE_MESSAGES: Readonly<Record<number, string>> = {
+  40902: '你当前有 3 单进行中，完成后再接新单',
+  40901: '手慢了，这单已被其他同学接走',
+  40903: '当前状态不可抢单',
+  40303: '不能接自己发的单',
+  40310: '只有发单人可以确认收货',
+};
+
 /** 把任意 catch 到的异常转成可直接展示的中文文案。 */
 export function toErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
-    return err.message;
+    return CODE_MESSAGES[err.code] ?? (err.message || '操作失败，请稍后重试');
   }
   if (err instanceof Error && err.message) {
     return err.message;

@@ -13,8 +13,19 @@ export function toNumber(value: number | string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** 金额展示：整数不带小数，半元保留一位（5 → ¥5，4.5 → ¥4.5）。 */
+/**
+ * 金额展示。
+ *
+ * 后端 `reward` 是 `Decimal → str`（"5.50" / "12.30"），**字符串直接透传**能保住尾零，
+ * 也不经过浮点；只有 mock 给 number 时才走数字格式化（整数去掉 .0）。
+ */
 export function formatMoney(value: number | string | null | undefined): string {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      return `¥${trimmed}`;
+    }
+  }
   const amount = toNumber(value);
   const text = Number.isInteger(amount) ? amount.toFixed(0) : amount.toFixed(1);
   return `¥${text}`;

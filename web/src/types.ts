@@ -105,8 +105,10 @@ export interface OrderDetail {
   to_poi_name: string;
   description?: string | null;
   images?: string[];
-  /** 取件码：仅发单人在详情页可见（后端密文不外泄给跑腿者） */
+  /** 取件码：仅当事人可见（后端权威判定见 `pick_code_masked`） */
   pick_code?: string | null;
+  /** 后端下发的权威掩码位：`pick_code === null` 时恒为 true */
+  pick_code_masked?: boolean;
   expect_minutes?: number;
   created_at?: string;
   publisher_id: number;

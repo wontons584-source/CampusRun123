@@ -17,6 +17,7 @@ import { Timeline } from '../components/Timeline';
 import { useToast } from '../components/Toast';
 import { Badge, Button, Card, LoadingHint } from '../components/ui';
 import { useAuth } from '../state/AuthContext';
+import { resolveOrderActions } from '../lib/actions';
 import {
   actionLabel,
   expectMinutesLabel,
@@ -195,7 +196,15 @@ export function OrderDetailPage(): JSX.Element {
   }
 
   const isPublisher = detail.publisher_id === user?.id;
-  const actions = detail.available_actions;
+  // 后端 available_actions 目前只做角色层过滤（会多报节点、也可能夹带 NOTE/CANCEL 类码），
+  // 这里用「白名单 + 时间轴」收敛成唯一的下一个合法动作，保证点了必成功。
+  const actions = resolveOrderActions(detail, timelineNodes);
+  // 取件码：以后端权威掩码位为准，兼容历史形态（null / 空串 / 含 * 的掩码）
+  const pickCodeVisible =
+    detail.pick_code_masked !== true &&
+    typeof detail.pick_code === 'string' &&
+    detail.pick_code !== '' &&
+    !detail.pick_code.includes('*');
 
   return (
     <AppShell
@@ -267,9 +276,7 @@ export function OrderDetailPage(): JSX.Element {
               }
             />
             <InfoRow label="发布时间" value={formatTime(detail.created_at)} />
-            {detail.pick_code !== undefined && detail.pick_code !== null && detail.pick_code !== '' ? (
-              <InfoRow label="取件码" value={detail.pick_code} />
-            ) : null}
+            {pickCodeVisible ? <InfoRow label="取件码" value={detail.pick_code ?? ''} /> : null}
             {detail.description !== undefined && detail.description !== null && detail.description !== '' ? (
               <div className="py-2">
                 <p className="text-sm text-gray-500">描述</p>
