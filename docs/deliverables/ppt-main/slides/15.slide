@@ -1,0 +1,36 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      开发方法：我出判据，它出实现
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 26, gap: 14 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>我做三件事</Text>
+      {['出判据：给可验收的标准，而不是模糊的要求', '做决策：技术选型、范围取舍、bug 定位', '负最终责任：每一行代码我都能讲清为什么'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#2563EB', fontWeight: 'bold', lineHeight: 1.5 }}>{i + 1}.</Text>
+          <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 26, gap: 14 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#64748B', lineHeight: 1.3 }}>AI 做三件事</Text>
+      {['写实现：按判据产出代码和测试', '跑测试：报结果，不替我做决定', '给出多方案：并列优缺点，而不是单一推荐'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#64748B', fontWeight: 'bold', lineHeight: 1.5 }}>{i + 1}.</Text>
+          <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Box style={{ background: '#2563EB', borderRadius: 8, padding: 18, marginTop: 22 }}>
+    <Text style={{ fontSize: 20, color: '#FFFFFF', lineHeight: 1.5 }}>
+      什么叫判据？不说「抢单要防并发」，而说<span style={{ fontWeight: 'bold' }}>「20 个请求抢同一单，跑完库里必须只有 1 条 IN_PROGRESS」</span>——能跑、能变红、能变绿，才算判据。
+    </Text>
+    <Text style={{ fontSize: 17, color: '#DBEAFE', lineHeight: 1.5, marginTop: 8 }}>
+      而且 AI 说「测试全绿」不算数，我会在真库上再查一次——上一页那三个 bug，就是这么查出来的。
+    </Text>
+  </Box>
+</Slide>

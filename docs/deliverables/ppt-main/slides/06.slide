@@ -1,0 +1,38 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      三条设计原则
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1.2, background: '#2563EB', borderRadius: 12, padding: 32, justifyContent: 'center', gap: 16 }}>
+      <Text style={{ fontSize: 14, color: '#BFDBFE', letterSpacing: 2 }}>原则一 · 最核心</Text>
+      <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.35 }}>
+        状态不是一个字段，而是一串事件
+      </Text>
+      <Text style={{ fontSize: 17, color: '#DBEAFE', lineHeight: 1.55 }}>
+        每单的「发单、接单、取件、送达、确认」都存在一张不可变的进度表里。
+        订单当前状态不是存出来的，是把事件重放算出来的——所以它天然可追溯、无法被悄悄篡改。
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 24 }}>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, justifyContent: 'center', gap: 10 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>
+          原则二 · 单一写出口
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>
+          所有状态变更只走状态机，非法跳级在入口就被守卫拦下，而不是靠业务代码自觉。
+        </Text>
+      </Box>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, justifyContent: 'center', gap: 10 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>
+          原则三 · 在真库上验证
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>
+          集成测试跑真实的 PostgreSQL 和 Redis，不用内存替身——很多 bug 只会在真库上暴露。
+        </Text>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

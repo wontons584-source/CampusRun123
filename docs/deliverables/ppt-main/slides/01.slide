@@ -1,0 +1,22 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flex: 1, justifyContent: 'center', gap: 28 }}>
+    <Box style={{ width: 72, height: 8, background: '#2563EB', borderRadius: 4 }} />
+    <Text style={{ fontSize: 64, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.15 }}>
+      CampusRun · 校园跑腿
+    </Text>
+    <Text style={{ fontSize: 24, color: '#64748B', lineHeight: 1.5 }}>
+      一个用 AI 从 0 到 1 搭建的校园互助跑腿系统
+    </Text>
+    <Text style={{ fontSize: 18, color: '#94A3B8', lineHeight: 1.5 }}>
+      发单 · 抢单 · 履约 · 确认，一条可追溯的互助链路
+    </Text>
+  </Box>
+  <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E5E7EB', paddingTop: 20 }}>
+    <Text style={{ fontSize: 14, color: '#94A3B8' }}>
+      工程项目认知实践 · 课程汇报
+    </Text>
+    <Text style={{ fontSize: 14, color: '#94A3B8' }}>
+      2026-10-29
+    </Text>
+  </Box>
+</Slide>

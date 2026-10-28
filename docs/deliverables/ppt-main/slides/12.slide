@@ -1,0 +1,37 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 22 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      核心难点三：测试全绿，真库上炸了三个
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 12, flex: 1 }}>
+    <Box style={{ flexDirection: 'row', gap: 12 }}>
+      <Text style={{ width: 30, fontSize: 15, fontWeight: 'bold', color: '#94A3B8' }}>#</Text>
+      <Text style={{ flex: 1.2, fontSize: 15, fontWeight: 'bold', color: '#94A3B8' }}>案例</Text>
+      <Text style={{ flex: 1.6, fontSize: 15, fontWeight: 'bold', color: '#94A3B8' }}>症状</Text>
+      <Text style={{ flex: 1.8, fontSize: 15, fontWeight: 'bold', color: '#94A3B8' }}>为什么 707 个测试没抓到</Text>
+    </Box>
+    <Box style={{ height: 1, background: '#E5E7EB' }} />
+    {[
+      { n: '1', name: '列宽太窄', s: '真库插入直接报错', w: '内存替身不校验列宽' },
+      { n: '2', name: '在途上限失效', s: '手上有 3 单还能抢第 4 单', w: '测试手填上下文，没走过真实 SQL' },
+      { n: '3', name: '发单不落库', s: '接口返回 201，数据消失', w: '测试绕过 HTTP 层，测不到事务边界', hot: true },
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', background: r.hot ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${r.hot ? '#FECACA' : '#E5E7EB'}`, borderRadius: 8, padding: 12 }}>
+        <Text style={{ width: 30, fontSize: 18, fontWeight: 'bold', color: r.hot ? '#DC2626' : '#64748B' }}>{r.n}</Text>
+        <Text style={{ flex: 1.2, fontSize: 18, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>{r.name}</Text>
+        <Text style={{ flex: 1.6, fontSize: 16, color: '#1E293B', lineHeight: 1.4 }}>{r.s}</Text>
+        <Text style={{ flex: 1.8, fontSize: 16, color: '#64748B', lineHeight: 1.4 }}>{r.w}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ marginTop: 22, alignItems: 'center', gap: 8 }}>
+    <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.4, textAlign: 'center' }}>
+      三个 bug 都不在函数内部，而在函数与函数之间
+    </Text>
+    <Text style={{ fontSize: 18, color: '#64748B', lineHeight: 1.4, textAlign: 'center' }}>
+      单元测试擅长验证「这个函数算得对不对」，天生测不到「这条链路接没接上」。
+    </Text>
+  </Box>
+</Slide>

@@ -1,0 +1,52 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      痛点（二）：四类痛点，以及现有办法为什么不行
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ width: 420, background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: 28, justifyContent: 'center', gap: 12 }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>
+        时间冲突
+      </Text>
+      <Text style={{ fontSize: 18, color: '#1E293B', lineHeight: 1.5 }}>
+        课表是刚性的。上午四节连上，快递免费保管却只有 12 小时——时间永远对不上。
+      </Text>
+      <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>
+        这是最普遍、也最无力的一类：不是懒，是真的抽不出身。
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 16 }}>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 20, justifyContent: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>
+          排队成本
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.45 }}>
+          高峰期驿站排二十分钟，取件五分钟——时间全耗在等。
+        </Text>
+      </Box>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 20, justifyContent: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>
+          信息不对称
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.45 }}>
+          有人没时间取、有人想赚零花，但互相找不到对方。
+        </Text>
+      </Box>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 20, justifyContent: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>
+          信任缺失
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.45 }}>
+          东西交给谁？送到了没？出了问题算谁的？没有留痕就不敢托付。
+        </Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 16, marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Text style={{ fontSize: 18, color: '#1E293B', lineHeight: 1.4, flex: 1 }}>
+      现有的办法——微信群喊话、表白墙求助——都依赖人情和自觉，没有约束、没有留痕，只能覆盖熟人小圈子，解决不了「陌生人之间」的互助。
+    </Text>
+  </Box>
+</Slide>

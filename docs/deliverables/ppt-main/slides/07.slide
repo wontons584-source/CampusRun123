@@ -1,0 +1,33 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      技术架构：模块化单体的四层
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 16, flex: 1 }}>
+    {[
+      { n: '前端', t: 'React 18 + Vite + Tailwind', d: '登录 / 大厅 / 发单 / 订单详情，共 4 页', c: '#2563EB', w: '88%' },
+      { n: 'API 层', t: 'FastAPI + JWT', d: 'auth / orders / pois 三类路由，统一响应信封', c: '#2563EB', w: '94%' },
+      { n: '领域层', t: 'OrderService + 状态机内核', d: '17 条迁移 + 19 个动作，apply() 单一写出口', c: '#F59E0B', w: '100%' },
+      { n: '数据层', t: 'PostgreSQL + Redis', d: '14 张表 / 27 索引；Redis Lua 抢单锁 + 频控 + GEO', c: '#06B6D4', w: '88%' },
+    ].map((l, i) => (
+      <Box key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        <Box style={{ width: 90, alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#64748B', lineHeight: 1.3 }}>{l.n}</Text>
+        </Box>
+        <Box style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+          <Box style={{ width: l.w, background: '#F8FAFC', border: `1px solid ${l.c}`, borderLeftWidth: 4, borderRadius: 8, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3, width: 240 }}>{l.t}</Text>
+            <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.4, flex: 1 }}>{l.d}</Text>
+          </Box>
+        </Box>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.4, flex: 1 }}>
+      单一代码库、按模块分层，避免微服务的复杂度——对一个校园场景，这比拆服务更务实。
+    </Text>
+  </Box>
+</Slide>

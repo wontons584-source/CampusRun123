@@ -1,0 +1,43 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      个人收获
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 20, flex: 1 }}>
+    <Box style={{ flex: 1.1, flexDirection: 'column', gap: 20 }}>
+      <Box style={{ flex: 1, background: '#2563EB', borderRadius: 12, padding: 24, justifyContent: 'center', gap: 10 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.3 }}>把「感觉」换成「判据」</Text>
+        <Text style={{ fontSize: 15, color: '#DBEAFE', lineHeight: 1.5 }}>
+          「应该没问题」是没有意义的。能跑、能变红、能变绿的标准，才让协作和验收成为可能。
+        </Text>
+      </Box>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, justifyContent: 'center', gap: 10 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>理解了测试的边界</Text>
+        <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5 }}>
+          单测测零件，测不出装配。三个「全绿之后才发现的 bug」让我真正理解了这一点。
+        </Text>
+      </Box>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 20 }}>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, justifyContent: 'center', gap: 10 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>AI 说全绿不算数</Text>
+        <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5 }}>
+          工具可以写实现、跑测试，但「数据真的落库了吗」这个问题，只能我自己在真库上查。
+        </Text>
+      </Box>
+      <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, justifyContent: 'center', gap: 10 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>走完一次完整的工程</Text>
+        <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5 }}>
+          从需求、架构、编码到测试、验收、交付，第一次完整地走了一遍，而每一环都有回退点。
+        </Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 16, marginTop: 20 }}>
+    <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5 }}>
+      最大的收获不是「做出了一个系统」，而是<span style={{ fontWeight: 'bold', color: '#B45309' }}>建立了一套「验证」的直觉</span>：任何结论，都要问一句——它是在真库上、在真实请求之外验证过的吗？
+    </Text>
+  </Box>
+</Slide>

@@ -1,0 +1,32 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'row', gap: 40, flex: 1 }}>
+    <Box style={{ width: 300, background: '#0F172A', borderRadius: 12, padding: 40, justifyContent: 'center', gap: 16 }}>
+      <Text style={{ fontSize: 14, color: '#64748B', letterSpacing: 2 }}>
+        下一步
+      </Text>
+      <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.25 }}>
+        后续规划
+      </Text>
+      <Text style={{ fontSize: 16, color: '#94A3B8', lineHeight: 1.5 }}>
+        按「能不能上线」排优先级，而不是「好不好做」
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
+      {[
+        { p: 'P0', t: '学号认证 + 推送', d: '没有真实身份，陌生人之间就建立不起信任；没有推送，接单靠刷。这两项不补，系统不能真正上线。', c: '#DC2626' },
+        { p: 'P1', t: '评价 + 纠纷仲裁', d: '完成后双向评分，超时失联走仲裁——把「信任」从规则变成可积累的信誉。', c: '#F59E0B' },
+        { p: 'P2', t: '后台管理 + 优化', d: '运营看板、风控、性能优化——上线后再迭代，不在一开始就过度设计。', c: '#64748B' },
+      ].map((r, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+          <Box style={{ width: 52, height: 34, background: r.c, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>{r.p}</Text>
+          </Box>
+          <Box style={{ flex: 1 }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>{r.t}</Text>
+            <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>{r.d}</Text>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+</Slide>

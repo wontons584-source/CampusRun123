@@ -1,0 +1,46 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+    <Text style={{ fontSize: 15, color: '#64748B', letterSpacing: 2 }}>
+      核心难点二 · 并发抢单
+    </Text>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.2 }}>
+      20 个人同时抢，只有 1 个人能成功
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#1E293B' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 48, flex: 1, alignItems: 'center' }}>
+    <Box style={{ width: 380, flexDirection: 'column', gap: 8 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12 }}>
+        <Text style={{ fontSize: 120, fontWeight: 'bold', color: '#F59E0B', lineHeight: 1 }}>20</Text>
+        <Text style={{ fontSize: 32, color: '#64748B' }}>个线程</Text>
+      </Box>
+      <Text style={{ fontSize: 28, color: '#64748B', lineHeight: 1.3 }}>抢同一个订单</Text>
+      <Box style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 8 }}>
+        <Text style={{ fontSize: 120, fontWeight: 'bold', color: '#06B6D4', lineHeight: 1 }}>1</Text>
+        <Text style={{ fontSize: 32, color: '#64748B' }}>个赢家</Text>
+      </Box>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 18 }}>
+      {[
+        { n: '闸一', t: 'Redis 抢单锁', d: '预过滤，把绝大多数失败挡在数据库之外', c: '#334155' },
+        { n: '闸二', t: '状态机 CAS', d: 'UPDATE 带 WHERE status=PENDING，谁先改谁赢', c: '#F59E0B' },
+        { n: '闸三', t: '数据库行锁', d: 'SELECT FOR UPDATE，串行化同一行的写入', c: '#06B6D4' },
+      ].map((g, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <Box style={{ width: 52, height: 52, background: g.c, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' }}>{g.n}</Text>
+          </Box>
+          <Box style={{ flex: 1 }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.3 }}>{g.t}</Text>
+            <Text style={{ fontSize: 15, color: '#94A3B8', lineHeight: 1.4 }}>{g.d}</Text>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Box style={{ background: '#1E293B', borderRadius: 8, padding: 16, marginTop: 24 }}>
+    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+      最有说服力的一次验证：我把 Redis 锁<span style={{ fontWeight: 'bold', color: '#F59E0B' }}>换成「永远返回成功」</span>——等于 20 个人都以为自己拿到了锁——结果仍然是只有 1 个赢家。因为正确性来自数据库的 CAS，Redis 锁只是性能优化，<span style={{ fontWeight: 'bold', color: '#FFFFFF' }}>挂了也不会出现两个人抢到同一单</span>。
+    </Text>
+  </Box>
+</Slide>

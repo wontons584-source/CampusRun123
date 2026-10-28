@@ -1,0 +1,44 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      痛点（一）：一个具体的下午
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 48, flex: 1 }}>
+    <Box style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 0 }}>
+      {[
+        { t: '14:00', d: '手机弹出通知：快递已到菜鸟驿站', c: '#2563EB' },
+        { t: '14:30', d: '打开课表：下午四节连上，走不开', c: '#2563EB' },
+        { t: '17:00', d: '想起免费保管只有 12 小时，明早就超时', c: '#F59E0B' },
+        { t: '18:00', d: '下课赶去驿站，排队二十分钟才取到', c: '#F59E0B' },
+      ].map((n, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 20 }}>
+          <Box style={{ width: 80, alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: n.c, lineHeight: 1.3 }}>
+              {n.t}
+            </Text>
+          </Box>
+          <Box style={{ width: 12, alignItems: 'center' }}>
+            <Box style={{ width: 12, height: 12, background: n.c, borderRadius: 6, marginTop: 8 }} />
+            {i < 3 ? <Box style={{ width: 2, height: 44, background: '#E5E7EB' }} /> : null}
+          </Box>
+          <Text style={{ fontSize: 20, color: '#1E293B', lineHeight: 1.4, flex: 1 }}>
+            {n.d}
+          </Text>
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ width: 380, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 32, justifyContent: 'center', gap: 16 }}>
+      <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.1 }}>
+        1 小时
+      </Text>
+      <Text style={{ fontSize: 20, color: '#1E293B', lineHeight: 1.5 }}>
+        为取一个快递，搭进去一小时、一次排队，还有一份「明天就超时」的焦虑。
+      </Text>
+      <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>
+        这不是个例——它是南审几千名学生每天都在重复的日常。
+      </Text>
+    </Box>
+  </Box>
+</Slide>

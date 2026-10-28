@@ -1,0 +1,39 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      数据模型：不是几张表，是一套约束
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 32, flex: 1, alignItems: 'center' }}>
+    <Box style={{ width: 360, flexDirection: 'column', gap: 8 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+        <Text style={{ fontSize: 110, fontWeight: 'bold', color: '#2563EB', lineHeight: 1 }}>14</Text>
+        <Text style={{ fontSize: 24, color: '#64748B', paddingBottom: 16 }}>张表</Text>
+      </Box>
+      <Text style={{ fontSize: 17, color: '#64748B', lineHeight: 1.5 }}>
+        订单、进度事件、用户、POI、评价、纠纷、资金流水……每个实体都有清晰边界。
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 20 }}>
+      {[
+        { v: '27', u: '条索引', d: '含 5 条部分索引，抢单大厅这类高频查询都有覆盖' },
+        { v: '17', u: '条状态迁移', d: '从发单到完成，每条迁移都对应一条业务规则' },
+        { v: '19', u: '个动作', d: '状态机的完整动作集，含催单、投诉、仲裁' },
+      ].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+          <Box style={{ width: 90, flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+            <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#F59E0B', lineHeight: 1 }}>{s.v}</Text>
+            <Text style={{ fontSize: 16, color: '#64748B' }}>{s.u}</Text>
+          </Box>
+          <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.45, flex: 1 }}>{s.d}</Text>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Box style={{ background: '#EFF6FF', borderRadius: 8, padding: 16, marginTop: 20 }}>
+    <Text style={{ fontSize: 18, color: '#1E293B', lineHeight: 1.5 }}>
+      真正花心思的不是「建多少表」，而是<span style={{ fontWeight: 'bold', color: '#2563EB' }}>用约束把业务规则钉进数据库</span>——唯一约束、部分索引、外键，让错误的写入在数据库层面就被拒绝，而不是靠上层代码「记得检查」。
+    </Text>
+  </Box>
+</Slide>

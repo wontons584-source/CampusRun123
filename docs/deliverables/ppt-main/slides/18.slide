@@ -1,0 +1,22 @@
+<Slide style={{ padding: 60, background: '#2563EB' }}>
+  <Box style={{ flex: 1, justifyContent: 'center', gap: 28, alignItems: 'center' }}>
+    <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.35, textAlign: 'center' }}>
+      让「代取」这件小事
+    </Text>
+    <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.35, textAlign: 'center' }}>
+      变得可信任、可追溯
+    </Text>
+    <Box style={{ width: 60, height: 4, background: '#F59E0B', borderRadius: 2, marginTop: 8 }} />
+    <Text style={{ fontSize: 20, color: '#DBEAFE', lineHeight: 1.5, textAlign: 'center' }}>
+      谢谢聆听，欢迎提问
+    </Text>
+  </Box>
+  <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ fontSize: 15, color: '#BFDBFE' }}>
+      汇报人：王思嘉
+    </Text>
+    <Text style={{ fontSize: 15, color: '#BFDBFE' }}>
+      2026-10-29
+    </Text>
+  </Box>
+</Slide>

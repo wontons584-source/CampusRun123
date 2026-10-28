@@ -1,0 +1,37 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      功能列表：完成到什么程度
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1.2, flexDirection: 'column', gap: 12 }}>
+      <Box style={{ background: '#ECFDF5', borderRadius: 8, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#15803D' }}>已完成 · 跑在真库上</Text>
+      </Box>
+      {['注册登录：手机号 + 密码，JWT 签发', '发单：类型 / 起终点 / 酬劳 / 取件码', '大厅：待接单列表，实时倒计时', '抢单：Redis 锁预过滤 + 状态机 CAS 定胜负', '履约：取件 → 配送中 → 送达，逐步上报', '确认收货：发单人验收，订单完成', 'POI 字典：8 个南审真实地点', '前端：登录 / 大厅 / 发单 / 详情 4 页'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#15803D', fontWeight: 'bold', lineHeight: 1.5 }}>✓</Text>
+          <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.45, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 12 }}>
+      <Box style={{ background: '#F1F5F9', borderRadius: 8, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#64748B' }}>本次没做 · 后续规划</Text>
+      </Box>
+      {['学号认证：邮箱验证码，真实身份', '推送：新单实时通知', '评价：完成后的双向评分', '纠纷仲裁：超时、失联的处置', '后台管理：运营看板'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#94A3B8', lineHeight: 1.5 }}>○</Text>
+          <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.45, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 14, marginTop: 20 }}>
+    <Text style={{ fontSize: 16, color: '#1E293B', lineHeight: 1.45 }}>
+      没做的不藏：学号认证和推送不补上，这个系统就不能真正上线——这是 P0，不是可选项。这一页在答辩时我会主动说，而不是等老师问。
+    </Text>
+  </Box>
+</Slide>

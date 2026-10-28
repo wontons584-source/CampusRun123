@@ -1,0 +1,56 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'row', gap: 40, flex: 1 }}>
+    <Box style={{ width: 300, background: '#2563EB', borderRadius: 12, padding: 40, justifyContent: 'center', gap: 16 }}>
+      <Text style={{ fontSize: 14, color: '#BFDBFE', letterSpacing: 2 }}>
+        01
+      </Text>
+      <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.25 }}>
+        我的出发点
+      </Text>
+      <Text style={{ fontSize: 16, color: '#DBEAFE', lineHeight: 1.5 }}>
+        一个每天都在校园里发生的真实麻烦
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB', width: 32 }}>
+          01
+        </Text>
+        <Box style={{ flex: 1 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.4 }}>
+            课表连续四节时，快递柜超时开始计费
+          </Text>
+          <Text style={{ fontSize: 18, color: '#64748B', lineHeight: 1.5 }}>
+            菜鸟驿站免费保管 12 小时，超过就开始收费——但上午满课，根本没时间跑一趟。
+          </Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB', width: 32 }}>
+          02
+        </Text>
+        <Box style={{ flex: 1 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.4 }}>
+            有人没时间取，有人想赚零花钱
+          </Text>
+          <Text style={{ fontSize: 18, color: '#64748B', lineHeight: 1.5 }}>
+            两边都真实存在，但互相找不到——信息不对称，让需求和供给都白白浪费。
+          </Text>
+        </Box>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB', width: 32 }}>
+          03
+        </Text>
+        <Box style={{ flex: 1 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.4 }}>
+            陌生人代取，最缺的是「信任」
+          </Text>
+          <Text style={{ fontSize: 18, color: '#64748B', lineHeight: 1.5 }}>
+            东西交给谁？送到了没有？出了问题算谁的？没有留痕，就没人敢托付。
+          </Text>
+        </Box>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

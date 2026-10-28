@@ -1,0 +1,38 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      质量验证：数字背后是四层防线
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 16, marginBottom: 22 }}>
+    {[
+      { v: '707', u: 'passed', d: '615 单元 + 92 集成' },
+      { v: '14', u: '张表', d: '27 索引 · 5 部分索引' },
+      { v: '17', u: '条迁移', d: '19 个动作 · 状态机' },
+      { v: '35', u: '次提交', d: '每个功能可独立回退' },
+    ].map((s, i) => (
+      <Box key={i} style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 10, padding: 16, alignItems: 'center', gap: 4 }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#2563EB', lineHeight: 1 }}>{s.v}</Text>
+        <Text style={{ fontSize: 15, color: '#64748B' }}>{s.u}</Text>
+        <Text style={{ fontSize: 13, color: '#94A3B8' }}>{s.d}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 10, flex: 1 }}>
+    {[
+      { n: '第一层', t: '函数层 · 单元测试', d: '验证「这个函数算得对不对」——但抓不到上一页的三个 bug', c: '#2563EB' },
+      { n: '第二层', t: '事务边界层 · 集成测试', d: '走真实 HTTP 请求，请求结束后另开连接查库——抓到了「发单不落库」', c: '#06B6D4' },
+      { n: '第三层', t: '真库层 · PG + Redis', d: '不用内存替身——抓到了「列宽太窄」「在途上限失效」', c: '#F59E0B' },
+      { n: '第四层', t: '期望层 · 测试本身对不对', d: '红的不一定是代码错，也可能是断言写错——判断依据是文档和用户，不是「谁写的」', c: '#DC2626' },
+    ].map((l, i) => (
+      <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 70, height: 34, background: l.c, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#FFFFFF' }}>{l.n}</Text>
+        </Box>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', width: 240, lineHeight: 1.3 }}>{l.t}</Text>
+        <Text style={{ fontSize: 15, color: '#64748B', flex: 1, lineHeight: 1.45 }}>{l.d}</Text>
+      </Box>
+    ))}
+  </Box>
+</Slide>

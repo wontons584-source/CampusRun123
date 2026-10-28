@@ -1,0 +1,52 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      核心难点一：45 分钟，两个互斥的出口
+    </Text>
+    <Text style={{ fontSize: 18, color: '#64748B', lineHeight: 1.4 }}>
+      接单人抢单后没了动静，发单人该怎么办？答案是：看这 45 分钟里他有没有付出过劳动。
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 28, justifyContent: 'center', gap: 14 }}>
+      <Text style={{ fontSize: 15, color: '#94A3B8', letterSpacing: 1 }}>出口一 · T17</Text>
+      <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>
+        无责取消
+      </Text>
+      <Box style={{ background: '#EFF6FF', borderRadius: 6, padding: 10 }}>
+        <Text style={{ fontSize: 16, color: '#1E293B', lineHeight: 1.5 }}>
+          触发条件：抢单后 <span style={{ fontWeight: 'bold' }}>45 分钟</span>，接单人<span style={{ fontWeight: 'bold' }}>零进度</span>
+        </Text>
+      </Box>
+      <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>
+        结果：订单回到待接单，发单人重新找人，不产生任何信用影响。
+      </Text>
+      <Text style={{ fontSize: 15, color: '#94A3B8', lineHeight: 1.45 }}>
+        为什么合理：接单人还没付出任何劳动，此时取消对双方都无成本。
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 28, justifyContent: 'center', gap: 14 }}>
+      <Text style={{ fontSize: 15, color: '#94A3B8', letterSpacing: 1 }}>出口二 · T16</Text>
+      <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#F59E0B', lineHeight: 1.3 }}>
+        发起投诉
+      </Text>
+      <Box style={{ background: '#FEF3C7', borderRadius: 6, padding: 10 }}>
+        <Text style={{ fontSize: 16, color: '#1E293B', lineHeight: 1.5 }}>
+          触发条件：接单人<span style={{ fontWeight: 'bold' }}>有过进度</span>（已取件），之后失联
+        </Text>
+      </Box>
+      <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>
+        结果：订单冻结，进入纠纷仲裁流程。
+      </Text>
+      <Text style={{ fontSize: 15, color: '#94A3B8', lineHeight: 1.45 }}>
+        为什么不同：东西可能已经在接单人手上，不能简单取消——只能走仲裁。
+      </Text>
+    </Box>
+  </Box>
+  <Box style={{ background: '#2563EB', borderRadius: 8, padding: 16, marginTop: 20 }}>
+    <Text style={{ fontSize: 18, color: '#FFFFFF', lineHeight: 1.5 }}>
+      关键：这两个出口<span style={{ fontWeight: 'bold' }}>互斥</span>——「没付出劳动」和「东西已在手上」不可能同时成立。所以界面上，发单人永远不会同时看到「无责取消」和「发起投诉」两个按钮。
+    </Text>
+  </Box>
+</Slide>
