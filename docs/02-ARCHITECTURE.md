@@ -183,6 +183,7 @@ erDiagram
 | avatar_url | text | | |
 | phone_enc | bytea | | AES-GCM 加密（D16 脱敏展示） |
 | phone_mask | varchar(11) | | `138****8888`，直接供接口返回 |
+| password_hash | varchar(128) | NULL | bcrypt 哈希（含随机盐，60 字符）；**永不返回给客户端**（不进任何 DTO、不进日志）。NULL = 未设置密码（只绑了第三方登录）。0003 迁移新增；列宽给到 128 是为将来换 argon2id 留余量 |
 | dept / grade | varchar(64)/(8) | | |
 | verify_status | varchar(16) | NOT NULL default 'UNVERIFIED' | `UNVERIFIED/REVIEWING/APPROVED/REJECTED`（FR-AUTH-04） |
 | credit_score | numeric(5,2) | NOT NULL default 100 | BR-25 区间 0–120 |
@@ -497,6 +498,11 @@ erDiagram
 | PATCH | `/me/notify-settings` | R2 | 开关/免打扰时段 | | FR-ME-04 |
 | GET | `/me/stats` | 登录 | — | 发/接/完成率/评分/信誉 | FR-ME-02 |
 | GET | `/me/orders` | 登录 | `role=publisher\|runner, status_group, cursor` | 双 Tab + 待确认置顶分组 | FR-CENTER-01/02 |
+
+> **勘误（M0 实现，2026-10-29）**：M0 阶段「我的订单」实际实现为 **`GET /orders/mine`**（与 `/hall` 同构，返回 `{items,total}`，每条带 `my_role`），
+> 不是本节表格里的 `/me/orders`。原因：M0 只需要「我发的 + 我接的」一个列表，`role` 二选一会让前端拉两次再合并。
+> `/me/orders` 的 `status_group` 与游标分页留给 **T-29 个人中心**；届时 `/orders/mine` 或变薄别名、或下线，
+> **不允许两个端点长期并存且都不在文档里**。`/orders/mine` 已知差异：固定 ≤50 条、按 `created_at` 倒序、无游标、无 `status_group`。
 | GET | `/me/runner-records` | 登录 | `month?` | 累计/按月中明细 | FR-CENTER-04 |
 | GET | `/me/credit` | 登录 | — | 分值/等级/流水 | FR-REVIEW-04 |
 | GET | `/push/inbox` | 登录 | `cursor`, `unread_only` | 站内消息 + 未读计数 | FR-PUSH-06 |
