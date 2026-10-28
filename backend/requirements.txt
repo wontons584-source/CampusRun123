@@ -18,7 +18,8 @@ redis==5.2.1
 celery==5.4.0
 
 # --- 安全与加密 ---
-PyJWT==2.10.1
+PyJWT==2.10.1                     # 访问令牌（HS256，settings.jwt_secret_key）
+bcrypt==5.0.0                     # 密码哈希（自带盐，禁止自己拼 salt）
 cryptography==44.0.0              # AES-GCM：phone_enc / pick_code_enc
 
 # --- 可观测 ---

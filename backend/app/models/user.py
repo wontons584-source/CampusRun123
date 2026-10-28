@@ -77,6 +77,13 @@ class User(Base, TimestampMixin):
         # 等于把掩码格式焊死在"3-4-4"上，改一次规则就炸。
         String(16), nullable=True, comment="138****8888，直接供接口返回"
     )
+    password_hash: Mapped[str | None] = mapped_column(
+        # 128 是 bcrypt(60) 的 2 倍余量：将来换 argon2id（约 97 字符）不用改列。
+        # 可空：M1 简化认证之前的存量用户没有密码；也支持"仅微信登录"的账号。
+        String(128),
+        nullable=True,
+        comment="bcrypt 哈希（含盐）；NULL = 未设置密码，只能走第三方登录。禁止落日志",
+    )
     dept: Mapped[str | None] = mapped_column(String(64), nullable=True)
     grade: Mapped[str | None] = mapped_column(String(8), nullable=True)
     verify_status: Mapped[str] = mapped_column(
