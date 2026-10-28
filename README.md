@@ -2,8 +2,68 @@
 
 面向单校区在校学生的互助跑腿平台：发单人发布代取快递 / 代买 / 代送任务，系统按地理位置智能推送给附近处于接单模式的在校学生，学生在抢单大厅自主抢单，全流程可追溯、可评价、可治理。
 
-> **当前状态：方案定稿，尚未开始编码。**
-> 本仓库目前只包含文档层交付物，代码目录（`backend/` `web/` `admin/` `deploy/`）按 `docs/02-ARCHITECTURE.md` 第 11 章的任务列表逐项建立。
+> **当前状态：地基已完成，最小可演示链路开发中。**
+>
+> 已完成并在**真实 PostgreSQL 16 + Redis 7** 上验证：14 张表与 27 条索引的完整迁移、
+> 17 条订单状态迁移的状态机内核、真实 SQLAlchemy 仓储（CAS 乐观锁 + 并发 seq 分配）、
+> Redis Lua 脚本装载、参数化配置热生效、发单接口（取件码 AES-GCM 加密落库）。
+>
+> 测试规模：**581 个单元测试 + 62 个集成测试**，全部通过。
+>
+> 开发中：注册登录、POI 字典、抢单大厅、履约进度、确认收货、前端页面。
+> 未开始：学号认证、推送调度、评价与纠纷仲裁、管理后台。
+
+---
+
+## 快速开始（本地）
+
+需要 Docker Desktop 与 Python 3.11+。
+
+```bash
+# 1. 起依赖（PostgreSQL + Redis）
+cd deploy && docker compose up -d postgres redis
+
+# 2. 装依赖
+cd ../backend
+python -m pip install -r requirements.txt
+
+# 3. 建表 + 灌参数
+export DATABASE_URL="postgresql+psycopg://campusrun:campusrun@localhost:5432/campusrun"
+export REDIS_URL="redis://localhost:6379/0"
+python -m alembic upgrade head
+
+# 4. 起服务
+uvicorn app.main:app --reload
+```
+
+打开 <http://localhost:8000/docs> 可直接调接口。
+
+### 跑测试
+
+```bash
+python -m pytest tests                              # 单元测试（不需要数据库）
+TEST_DATABASE_URL=$DATABASE_URL \
+  python -m pytest tests -m integration             # 集成测试（需要真库）
+```
+
+> 集成测试的每个用例跑在独立事务里、结束回滚，可反复执行不脏库。
+
+---
+
+## 当前实现进度
+
+| 模块 | 状态 | 说明 |
+|---|---|---|
+| 数据模型与迁移 | ✅ 完成 | 14 表 / 27 索引（5 条部分索引）/ 2 个迁移 |
+| 通用内核 | ✅ 完成 | 30+ 业务错误码、统一响应信封、游标分页、可注入时钟、trace 链路 |
+| 订单状态机 | ✅ 完成 | 17 条迁移 + 19 个动作 + 守卫纯函数 |
+| 真实仓储 | ✅ 完成 | CAS 乐观锁、`seq` 并发分配、约束冲突映射业务码 |
+| Redis / Lua | ✅ 完成 | 抢单锁、频控、GEO 心跳，`NOSCRIPT` 自动重载 |
+| 参数化配置 | ✅ 完成 | `sys_configs` + Redis 快照 60s 热生效 |
+| 发单 | ✅ 完成 | 取件码加密、酬劳区间、发单窗、待接单上限 |
+| 认证 / 大厅 / 抢单 / 履约 / 确认 | 🚧 开发中 | 课程演示的最小闭环 |
+| 前端页面 | 🚧 开发中 | 登录 / 大厅 / 发单 / 订单详情 |
+| 学号认证 / 推送 / 评价 / 纠纷 / 后台 | ⬜ 未开始 | 见 `docs/02-ARCHITECTURE.md` 第 11 章 |
 
 ---
 
@@ -21,21 +81,26 @@
 
 ---
 
-## 计划中的仓库结构
+## 仓库结构
 
 ```
 campus-run/
-├── backend/            # FastAPI 应用（模块化单体，12 个 domain 包）
+├── backend/            # FastAPI 应用（模块化单体）
 │   ├── app/
+│   │   ├── core/       # 错误码、响应、分页、时钟、日志、加密
+│   │   ├── db/         # 会话、Redis、Lua 脚本
+│   │   ├── models/     # 14 张表的 ORM 定义
+│   │   ├── modules/    # 领域模块（order / admin / auth …）
+│   │   └── api/        # HTTP 路由
 │   ├── alembic/        # 迁移脚本，必须提交
 │   ├── scripts/        # 种子导入、压测、对账脚本
 │   └── tests/
 ├── web/                # 用户端 React 18 + Vite
-├── admin/              # 管理后台 React 18 + Vite
-├── packages/           # web 与 admin 共享的 api-client / domains / ui-kit
 ├── deploy/             # Docker Compose、Dockerfile、Makefile、nginx.conf
-└── docs/               # 本目录
+└── docs/               # 设计与验收依据
 ```
+
+> `admin/`（管理后台）与 `packages/`（共享包）尚未创建，见架构文档第 11 章。
 
 ---
 
