@@ -760,3 +760,44 @@ def test_detail_t16_replaces_t17_after_runner_progress(db: Session, redis_env: A
     assert "DISPUTE_OPENED" in actions, f"有进度 + 静默 46min，T16 必须可走，实得 {actions}"
     assert "CANCEL_LOST" not in actions, f"接了单还去取件了，不能再无责取消，实得 {actions}"
     assert not {"CANCEL_LOST", "DISPUTE_OPENED"} <= set(actions), "T16/T17 互斥，不能同时出现"
+
+
+# ===========================================================================
+# 8. 我的订单（`/orders/mine`）：与大厅同构 + `my_role`
+# ===========================================================================
+def test_mine_returns_both_roles_with_my_role_field(db: Session, redis_env: Any) -> None:
+    """我发的和我接的都要出现在 `/mine`，且 `my_role` 正确。
+
+    前端 `HallPage` 的两个 Tab 共用同一个解析器（`{items,total}`）与同一张卡片，
+    `my_role` 是它区分「发单人视角 / 接单人视角」的**权威值**（优先于按
+    `publisher_id` 猜）。所以这个字段错了，页面不会报错 —— 只会把「确认收货」
+    按钮画到接单人那一侧，点下去 403。
+    """
+    publisher = _mk_user(db.connection(), "我的订单发单人")
+    runner = _mk_user(db.connection(), "我的订单接单人")
+    from_poi = _mk_poi(db.connection(), "驿站", "STATION")
+    to_poi = _mk_poi(db.connection(), "宿舍", "DORM")
+    repo = SqlOrderRepo(db)
+    service = OrderService(db)
+
+    published_id = repo.create_order(_draft(publisher, from_poi, to_poi), now=NOW)
+    taken_id = repo.create_order(_draft(publisher, from_poi, to_poi), now=NOW)
+    service.grab_order(order_id=taken_id, runner_id=runner, now=NOW)
+
+    mine_as_publisher = {item["id"]: item for item in service.mine(user_id=publisher)}
+    mine_as_runner = {item["id"]: item for item in service.mine(user_id=runner)}
+
+    assert published_id in mine_as_publisher
+    assert mine_as_publisher[published_id]["my_role"] == "PUBLISHER"
+    assert mine_as_runner[taken_id]["my_role"] == "RUNNER"
+    # 同一单在两个人的列表里各出现一次、`my_role` 不同 —— 这正是 `my_role` 存在的理由：
+    # 光看订单行分不清"我是发单人还是接单人"，而两种身份能做的动作完全不同。
+    assert mine_as_publisher[taken_id]["my_role"] == "PUBLISHER", "这单是我发的"
+    assert published_id not in mine_as_runner, "没人接的单不该出现在接单人的列表里"
+
+    # 与大厅同构：同一批字段都在（前端同一个解析器）
+    item = mine_as_publisher[published_id]
+    for key in ("id", "order_no", "status", "type", "reward", "deadline",
+                "from_poi_name", "to_poi_name", "created_at", "available_actions", "my_role"):
+        assert key in item, f"/mine 缺少字段 {key}（与 /hall 同构的契约被破坏）"
+    assert "pick_code" not in repr(item), "列表永不含取件码"
