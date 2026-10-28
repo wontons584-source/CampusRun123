@@ -16,7 +16,6 @@ from __future__ import annotations
 import datetime
 import logging
 import uuid
-from dataclasses import replace
 from decimal import Decimal
 from typing import Any, Final
 
@@ -34,10 +33,12 @@ from app.modules.order.no_gen import gen_order_no
 from app.modules.order.queries import (
     HALL_LIMIT,
     actor_for,
+    build_timeline,
     detail_actions,
-    hall_actions_for,
     list_hall,
+    list_mine,
     load_detail,
+    my_role_of,
     reveal_pick_code,
 )
 from app.modules.order.repo import OrderDraft, SqlOrderRepo, count_inflight, count_pending
@@ -50,6 +51,7 @@ from app.modules.order.state_machine import (
     Thresholds,
     TransitionPayload,
     apply,
+    available_actions,
     guard_create,
 )
 
@@ -200,12 +202,19 @@ class OrderService:
 
         | 场景 | 码 | 前端文案方向 |
         |---|---|---|
-        | 已被别人接走 | `409/40901` | 手慢了，去看看别单 |
+        | 已被别人接走（`runner_id` 非空） | `409/40901` | 手慢了，去看看别单 |
         | 接自己的单 | `403/40303` | 不能接自己发的单 |
         | 在途超 3 单 | `409/40902` | 先把手上的单完成 |
-        | 非 PENDING（已取消/已过期/已送达） | `409/40903` | 该单已不可接 |
+        | 已关闭/已过期（没人接过） | `409/40903` | 该单已不可接 |
 
         全部映射成 409 会让用户不知道该刷新还是该先完成手上的单。
+
+        **"已被接走" 与 "不可接" 的界线是 `runner_id` 是否为空**，不是状态值本身：
+        20 个线程同时抢同一单时，19 个失败者看到的库内状态可能是 `PENDING`
+        （赢家还没提交，在锁上等）也可能是 `IN_PROGRESS`（已提交）。两种情况
+        对用户是同一件事 —— "这单有人了" —— 所以必须都回 `40901`。
+        若把"看到 IN_PROGRESS"判成 `40903`，同一次抢单里 19 个人会收到两种错误码，
+        前端得写两套文案，用户也分不清"是被抢了还是单子被关了"。
 
         Args:
             order_id: 订单 id。
@@ -227,24 +236,26 @@ class OrderService:
         #     （换成"先抢锁再校验"会让每次点"接自己的单"都白占一次 Redis 往返）
         if not is_verified:
             raise ApiError(403, ErrCode.NOT_VERIFIED, "请先完成认证后再接单")
-        ctx = self._repo.load_ctx(order_id)          # 不存在 → 404/40401
+        ctx = self._repo.load_ctx(order_id, viewer_id=runner_id)   # 不存在 → 404/40401
         if ctx.publisher_id == runner_id:
             raise ApiError(403, ErrCode.CANNOT_GRAB_OWN_ORDER, "不能接自己发布的订单")
         if ctx.status != Status.PENDING.value:
+            # 有人接过 → 40901（"手慢了"，处理动作是去看别单）；
+            # 没人接过但不是 PENDING → 40903（已关闭/已过期，处理动作是刷新列表）。
+            # 判据看 `runner_id` 而不是状态值：并发抢单时 19 个失败者看到的库内状态
+            # 可能是 PENDING 也可能是 IN_PROGRESS（取决于赢家是否已提交），
+            # 但对他们而言都是"这单有人了"，必须是同一个码。
+            if ctx.runner_id is not None:
+                raise ApiError(409, ErrCode.ORDER_ALREADY_TAKEN, "手慢了，订单已被接走")
             raise ApiError(
-                409, ErrCode.ORDER_STATUS_NOT_GRABBABLE, "该订单当前不可接（已有人接走或已关闭）"
+                409, ErrCode.ORDER_STATUS_NOT_GRABBABLE, "该订单已关闭或已过期，不可接"
             )
 
-        # ---- 0.5 在途数必须按**抢单人**统计，不能用 load_ctx 里的那个值 ----
-        # `_LOAD_CTX_SQL` 的 `runner_inflight_count` 是「本单接单人的在途数」，
-        # 而待接单的 `runner_id` 是 NULL —— 那个子查询对 PENDING 单恒等于 0。
-        # 用它做 `guard_grab` 的 BR-16 判据，等于这条守卫永远放行（实测：手上
-        # 已有 3 单的人还能继续抢第 4 单）。抢单场景的正确口径是"我要抢单，
-        # 我自己手上有几单"，所以按 `runner_id` 现查一次，并用 `dataclasses.replace`
-        # 覆盖进快照 —— 守卫读到的仍是同一份 `OrderCtx`，只是这一个字段被修正。
-        inflight = count_inflight(self._db, runner_id)
-        ctx = replace(ctx, runner_inflight_count=inflight)
-        if inflight >= cfg.max_inflight:
+        # ---- 0.5 在途数由 `viewer_id` 口径直接带出来（BR-16）----
+        # `load_ctx(viewer_id=runner_id)` 让 `_LOAD_CTX_SQL` 按**谁要来抢**统计在途，
+        # 而不是按"本单的接单人"（待接单的 `runner_id` 是 NULL，那样算恒为 0，
+        # 守卫等于永远放行）。这里**不要**自己再查一次 —— 两次口径必然漂移。
+        if ctx.runner_inflight_count >= cfg.max_inflight:
             raise ApiError(
                 409,
                 ErrCode.INFLIGHT_LIMIT_REACHED,
@@ -399,10 +410,75 @@ class OrderService:
         对他自己的单是 `["CANCEL"]`（发单人才能取消）。前端据此渲染按钮，
         不必自己复制一份"什么状态能接单"的规则。
         """
-        actor = Actor.runner(user_id, is_verified=is_verified)
-        actions = hall_actions_for(actor)
-        items = list_hall(self._db, now=now, limit=limit)
-        return [item.to_dict(actions=actions) for item in items]
+        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        cfg = self._thresholds()
+        # 在途数按**当前用户**查一次、整页共用：50 条各查一次就是 50 次往返，
+        # 而它和具体哪一单无关（BR-16 是"这个人手上有几单"）。
+        inflight = count_inflight(self._db, user_id)
+        items = list_hall(self._db, now=moment, limit=limit)
+
+        payload: list[dict[str, Any]] = []
+        for item in items:
+            # 每条都要用**它自己的** `publisher_id`：以前图省事写死 `-1`，
+            # 结果自己发的单在大厅里也显示"接单"按钮（点了必 40303）。
+            ctx = OrderCtx(
+                id=item.id,
+                status=item.status,
+                publisher_id=item.publisher_id,
+                runner_id=item.runner_id,
+                accepted_at=None,
+                delivered_at=None,
+                has_runner_evidence=False,
+                last_runner_evidence_at=None,
+                pre_dispute_status=None,
+                runner_inflight_count=inflight,
+            )
+            actor = actor_for(ctx, user_id, is_verified=is_verified)
+            payload.append(
+                item.to_dict(
+                    actions=available_actions(ctx, actor, now=moment, cfg=cfg),
+                )
+            )
+        return payload
+
+    def mine(
+        self,
+        *,
+        user_id: int,
+        is_verified: bool = True,
+        limit: int = HALL_LIMIT,
+    ) -> list[dict[str, Any]]:
+        """我的订单（我发的 + 我接的），按发布时间倒序，最多 50 条。
+
+        与 `hall()` 的**返回结构逐字段同构**，只多一个 `my_role`：
+        前端两个 Tab 共用同一个解析器与卡片组件，多一种形状就多一处适配。
+
+        两条刻意的差异（详见 `queries.list_mine`）：不过滤 `deadline`、不限 `status`。
+        """
+        items = list_mine(self._db, user_id=user_id, limit=limit)
+        payload: list[dict[str, Any]] = []
+        for item in items:
+            # 每条的"我能做什么"要按**这一单里我的角色**算，不能全用接单人身份：
+            # 我发的 PENDING 单可用动作是 CANCEL，我接的单是 PICKED_UP/DELIVER。
+            ctx = OrderCtx(
+                id=item.id,
+                status=item.status,
+                publisher_id=item.publisher_id,
+                runner_id=item.runner_id,
+                accepted_at=None,
+                delivered_at=None,
+                has_runner_evidence=False,
+                last_runner_evidence_at=None,
+                pre_dispute_status=None,
+            )
+            actor = actor_for(ctx, user_id, is_verified=is_verified)
+            payload.append(
+                item.to_dict(
+                    actions=available_actions(ctx, actor),
+                    my_role=my_role_of(item, user_id),
+                )
+            )
+        return payload
 
     def detail(
         self,
@@ -410,14 +486,33 @@ class OrderService:
         order_id: int,
         user_id: int,
         is_verified: bool = True,
+        now: datetime.datetime | None = None,
     ) -> dict[str, Any]:
-        """订单详情：`available_actions[]` + 按可见性规则解密取件码。"""
-        ctx = self._repo.load_ctx(order_id)               # 不存在 → 404/40401
+        """订单详情：`available_actions[]`（守卫层）+ 时间轴 + 按可见性规则解密的取件码。
+
+        `available_actions[]` 是**守卫层**精度：只返回"点了真的会成功"的动作。
+        两个直观效果（也是录屏里最有说服力的一幕）：
+
+        - 接单人点完「已取件」后，`PICKED_UP` 与 `DELIVER` 从列表里消失，只剩
+          `ON_THE_WAY`；
+        - 发单人在接单人报进度之前有 `CANCEL_LOST`（T17 无责取消），
+          一旦有了进度，它消失、换成 `DISPUTE_OPENED`（T16 失联投诉）——
+          T16/T17 的互斥在界面上就是"一个按钮换另一个按钮"。
+
+        Args:
+            order_id: 订单 id。
+            user_id: 当前登录用户（角色按关系推断，见 `actor_for`）。
+            is_verified: 认证标记（写进 `Actor`）。
+            now: 观察时刻（测试注入；默认进程时钟）。T16/T17 的 45 分钟边界靠它。
+        """
+        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        ctx = self._repo.load_ctx(order_id, viewer_id=user_id)   # 不存在 → 404/40401
         detail = load_detail(self._db, order_id)
         actor = actor_for(ctx, user_id, is_verified=is_verified)
         return detail.to_dict(
             pick_code=reveal_pick_code(detail, user_id),
-            actions=detail_actions(self._db, order_id, actor),
+            actions=detail_actions(ctx, actor, now=moment, cfg=self._thresholds()),
+            timeline=build_timeline(self._db, order_id, status=detail.status),
         )
 
     # ------------------------------------------------------------------ 内部

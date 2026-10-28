@@ -45,12 +45,12 @@ from sqlalchemy.orm import Session
 from app.core.clock import clock as default_clock
 from app.core.errors import ApiError, ErrCode
 from app.core.security import decrypt_pick_code
-from app.modules.order.repo import SqlOrderRepo
 from app.modules.order.state_machine import (
     Action,
     Actor,
     OrderCtx,
     Status,
+    Thresholds,
     available_actions,
 )
 
@@ -502,29 +502,45 @@ def my_role_of(item: HallItem, user_id: int) -> str:
     return "PUBLISHER" if item.publisher_id == user_id else "RUNNER"
 
 
-def hall_actions_for(actor: Actor) -> tuple[Action, ...]:
-    """大厅条目对当前用户的可用动作（条目状态恒为 `PENDING`，只做角色过滤）。
+def detail_actions(
+    ctx: OrderCtx,
+    actor: Actor,
+    *,
+    now: datetime.datetime,
+    cfg: Thresholds,
+) -> tuple[Action, ...]:
+    """详情页的可用动作：**守卫层精度**（返回的每个按钮点了真的会成功）。
 
-    复用 `state_machine.available_actions`，**不**在这里另写一份「谁能接单」。
+    ## 为什么详情必须用守卫层
+
+    只做角色层过滤会返回"点了必失败"的按钮：接单人已经 `PICKED_UP` 之后，
+    仍会返回 `PICKED_UP`（再点必 `42201`）和 `DELIVER`（跳级必拒）。
+    前端按后端给的按钮渲染，用户就点出一个"操作失败" —— 这不是权限问题，
+    是**契约不诚实**。录屏里最刺眼的一幕就是"点完已取件，按钮还在，再点报错"。
+
+    守卫层之所以几乎零成本：本项目所有守卫都是 `(ctx, actor, now, cfg, action)`
+    的**纯函数**（不查库），`OrderCtx` 已经把 `deadline` / `last_node` /
+    `has_runner_evidence` / `dispute_count` / `inflight` 都带全了。
+
+    ## `now` / `cfg` 为什么是必填而不是默认空
+
+    默认 `now=None` 会静默退回角色层 —— 调用方少传一个参数，bug 就无声无息地
+    回来了（这正是上一版详情页的问题）。必填 + 显式从 service 传下来，
+    让"忘了启用守卫层"变成 TypeError 而不是线上事故。
+
+    ## 前置条件
+
+    `ctx` 必须是 `repo.load_ctx(order_id, viewer_id=actor.id)` 的结果 ——
+    `guard_grab` 读的 `runner_inflight_count` 要按**谁在看**算，
+    否则拿"本单接单人的在途数"判"当前用户能不能接"，`ACCEPT` 会算错。
+
+    Args:
+        ctx: 已按 viewer 口径加载的订单快照（**不要**在这里再查一次库）。
+        actor: 当前登录用户的角色投影。
+        now: 观察时刻（UTC aware）。
+        cfg: 运行期阈值（来自 `ConfigService`；运营改过之后默认值就不对了）。
     """
-    ctx = OrderCtx(
-        id=0,
-        status=Status.PENDING.value,
-        publisher_id=-1,          # 大厅条目可能是我自己的单，所以不填真实 id
-        runner_id=None,
-        accepted_at=None,
-        delivered_at=None,
-        has_runner_evidence=False,
-        last_runner_evidence_at=None,
-        pre_dispute_status=None,
-    )
-    return available_actions(ctx, actor)
-
-
-def detail_actions(db: Session, order_id: int, actor: Actor) -> tuple[Action, ...]:
-    """详情页的可用动作：走 `load_ctx` + `available_actions`（状态×角色）。"""
-    ctx = SqlOrderRepo(db).load_ctx(order_id)
-    return available_actions(ctx, actor)
+    return available_actions(ctx, actor, now=now, cfg=cfg)
 
 
 __all__ = [
@@ -536,7 +552,6 @@ __all__ = [
     "actor_for",
     "build_timeline",
     "detail_actions",
-    "hall_actions_for",
     "list_hall",
     "list_mine",
     "load_detail",

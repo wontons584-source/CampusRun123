@@ -9,8 +9,8 @@ DTO 绑定 → 调 service → 包装响应 → 依赖注入会话/身份。
 
 ## 路由顺序是契约的一部分
 
-`/hall` 必须声明在 `/{order_id}` **之前**：FastAPI 按声明顺序匹配，
-反过来的话 `GET /orders/hall` 会先命中 `/{order_id}` 并把 `"hall"`
+`/hall` 与 `/mine` 必须声明在 `/{order_id}` **之前**：FastAPI 按声明顺序匹配，
+反过来的话 `GET /orders/mine` 会先命中 `/{order_id}` 并把 `"mine"`
 交给 `int` 解析，返回一个 `422` —— 而且报错信息是"输入不是整数"，
 排查方向完全跑偏。
 
@@ -32,7 +32,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, get_current_user, get_db_session
-from app.core.response import Page, ok
+from app.core.response import ok
 from app.models.order import Order
 from app.modules.order.service import OrderService
 from app.modules.order.state_machine import ApplyResult
@@ -99,15 +99,36 @@ def hall(
 ) -> JSONResponse:
     """`PENDING` 且未过期的订单，按发布时间倒序，最多 50 条。
 
-    响应**绝不含** `pick_code`（连密文都不查，见 `queries.list_hall` 的列白名单）。
+    响应**绝不含** `pick_code`（连密文都不查，见 `queries._HALL_SQL` 的列白名单）。
 
-    响应体用 K-05 的游标分页形状 `{items, next_cursor, has_more}`（本轮
-    `next_cursor=null`、`has_more=false`：校园场景同时待接单在几十量级，
-    `LIMIT 50` 一次拿完够用）。形状先定死，将来加分页时前端不用改解析逻辑 ——
-    反过来先返回裸数组、以后再包一层，就是一次破坏性变更。
+    响应体是 `{items, total}`（**不是**裸数组，也**不是** K-05 的游标信封）——
+    前端 `web/src/api/client.ts::unwrapList` 按这个形状取值，两个 Tab 共用同一个
+    解析器。本轮 `total` 就等于 `len(items)`（单页 50 条一次拿完），
+    将来真要分页时再加 `next_cursor`，不要现在就把形状改掉。
     """
     items = OrderService(db).hall(user_id=user.id, is_verified=user.is_verified)
-    return JSONResponse(status_code=200, content=ok(Page(items).to_dict()))
+    return JSONResponse(status_code=200, content=ok({"items": items, "total": len(items)}))
+
+
+# ---------------------------------------------------------------------------
+# 我的订单（我发的 + 我接的）—— 同样必须早于 /{order_id} 声明
+# ---------------------------------------------------------------------------
+@router.get("/mine", summary="我的订单：我发的 + 我接的")
+def my_orders(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db_session)],
+) -> JSONResponse:
+    """`publisher_id = 我` **或** `runner_id = 我`，按发布时间倒序，最多 50 条。
+
+    与 `/hall` **逐字段同构**，只多一个 `my_role`（`PUBLISHER` / `RUNNER`）——
+    前端两个 Tab 共用同一张卡片组件，多一种形状就多一处适配。
+
+    两条刻意的差异：不过滤 `deadline`（自己发的过期单也要看得见）、
+    不限 `status`（`COMPLETED` / `CANCELLED` 都是要回看的记录）。
+    **同样不查 `pick_code_enc`**（列表永不含取件码）。
+    """
+    items = OrderService(db).mine(user_id=user.id, is_verified=user.is_verified)
+    return JSONResponse(status_code=200, content=ok({"items": items, "total": len(items)}))
 
 
 # ---------------------------------------------------------------------------

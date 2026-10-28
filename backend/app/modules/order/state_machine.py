@@ -1082,19 +1082,43 @@ def illegal_action(
     return ApiError(422, ErrCode.ILLEGAL_TRANSITION, message)
 
 
-def available_actions(order: OrderCtx, actor: Actor) -> tuple[Action, ...]:
+def available_actions(
+    order: OrderCtx,
+    actor: Actor,
+    *,
+    now: datetime.datetime | None = None,
+    cfg: Thresholds = DEFAULT_THRESHOLDS,
+) -> tuple[Action, ...]:
     """`available_actions[]`（FR-CENTER-05）：按「状态 × 角色」算，前端只渲染。
 
-    只做**角色层**过滤，不跑守卫（守卫要 now/阈值，且部分守卫会查库）。
-    因此返回值是「按钮可以显示」的集合，点了之后仍可能被守卫拒绝并返回 42201 ——
-    这是刻意的：把「能不能点」和「点了会不会成功」分开，避免为渲染去跑 19 个守卫。
+    ## 两种精度（`now` 决定）
+
+    - **不传 `now`（默认，角色层）**：只判「这个角色的按钮能不能显示」。
+      用于"按钮先摆出来、点了再判"的场景，零成本。
+    - **传 `now`（守卫层，推荐给详情接口）**：额外跑一遍**纯函数守卫**，
+      返回真正"点了会成功"的集合。契约上更诚实 —— 不传时，
+      `IN_PROGRESS` 的接单人即使在 `PICKED_UP` 之后仍会收到 `PICKED_UP`，
+      详情页就会出现一个点了必 42201 的按钮。
+
+    为什么可以顺手跑守卫：本项目所有守卫都是 `(ctx, actor, now, cfg, action)` 的
+    **纯函数**（不查库），`OrderCtx` 已经把 `deadline` / `last_node` /
+    `has_runner_evidence` / `dispute_count` / `inflight` 都带全了，
+    所以跑 19 个守卫就是 19 次内存判断，没有额外 I/O。
+
+    注意：`guard_grab` 依赖的 `runner_inflight_count` 要按**谁在看**算，
+    调用方应传 `repo.load_ctx(order_id, viewer_id=actor.id)`。
     """
     out: list[Action] = []
     for (status_key, action), candidates in _TRANSITION_INDEX.items():
         if status_key != order.status:
             continue
-        if any(actor.role in trans.actors for trans in candidates):
+        for trans in candidates:
+            if actor.role not in trans.actors:
+                continue
+            if now is not None and not trans.guard(order, actor, now, cfg, action):
+                continue
             out.append(action)
+            break
     return tuple(sorted(out, key=lambda a: a.value))
 
 
