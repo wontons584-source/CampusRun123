@@ -19,10 +19,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 DOC_COLUMNS: dict[str, set[str]] = {
     "users": {
         "id", "student_no", "nickname", "avatar_url", "phone_enc", "phone_mask",
-        # `password_hash` 是 0003 迁移新增（T-07 简化认证），5.2 表结构里没有它。
-        # 登记在这里是**刻意的**：本用例的职责是"代码里的列集合 == 文档列集合"，
-        # 让每一次结构偏离都必须显式写一行，而不是悄悄漂移。
-        "password_hash",
         "dept", "grade", "verify_status", "credit_score", "credit_level", "status",
         "token_version", "is_runner_mode", "notify_settings", "created_at", "updated_at",
     },
@@ -72,6 +68,21 @@ DOC_COLUMNS: dict[str, set[str]] = {
 
 #: 5.2 没写、但实现额外加的列：只允许审计时间列（不改变任何业务语义）
 AUDIT_ONLY = {"created_at", "updated_at"}
+
+#: 5.2 之外**刻意引入**的结构偏离，必须在这里显式登记（表名 → 列集合）。
+#:
+#: 语义是「**必须存在**的偏离」，不是「允许出现」：
+#: 登记在此意味着 ① 它不属于 5.2（文档基线保持纯洁）② 它必须真的在库里
+#: （`0003` 在 head，少了就是迁移漏跑，必须红）。
+#:
+#: 为什么不直接写进 `DOC_COLUMNS`：`DOC_COLUMNS` 是 `docs/02-ARCHITECTURE.md` 5.2
+#: 的逐行转录，是"文档真理"的**唯一副本**。把实现的偏离塞进去，这份基线就不再忠实
+#: （以后谁想比对"文档到底写了什么"会读到假信息），偏离记录也会从结构化数据退化成注释。
+#: 分开两处后检测力**完全一致**（删列红、加列红、文档列缺失红），但语义不再混淆。
+ALLOWED_DEVIATIONS: dict[str, set[str]] = {
+    # 0003_add_password_hash（T-07 简化认证）：bcrypt 哈希，5.2 无此列。
+    "users": {"password_hash"},
+}
 
 # ---------------------------------------------------------------------------
 # 5.3 索引清单：表 → {索引名: (是否唯一, WHERE 子句片段或 None)}
@@ -158,15 +169,29 @@ def test_a1_exactly_fourteen_tables() -> None:
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("table_name", sorted(DOC_COLUMNS))
 def test_a2_columns_match_doc(table_name: str) -> None:
-    """文档列必须全在；实现多出来的只允许是审计时间列。"""
+    """文档列必须全在；实现多出来的只能是审计时间列或已登记的刻意偏离。
+
+    三条断言合起来把三个方向都堵住：
+    1. `missing`（5.2 要求但不存在）→ 红
+    2. `extra`（两边都没登记的多余列）→ 红
+    3. `expected`（登记为刻意偏离但实际不存在）→ 红
+    """
     actual = set(Base.metadata.tables[table_name].columns.keys())
     doc = DOC_COLUMNS[table_name]
+    expected = ALLOWED_DEVIATIONS.get(table_name, set())
+    allowed = AUDIT_ONLY | expected
 
     missing = doc - actual
     extra = actual - doc
-    assert not missing, f"{table_name} 缺少文档要求的列：{sorted(missing)}"
-    assert extra <= AUDIT_ONLY, (
-        f"{table_name} 出现了 5.2 之外的非审计列：{sorted(extra - AUDIT_ONLY)}"
+    assert not missing, f"{table_name} 缺少 5.2 要求的列：{sorted(missing)}"
+    assert extra <= allowed, (
+        f"{table_name} 出现未登记的列 {sorted(extra - allowed)}；"
+        f"若是刻意的结构偏离，请加到 ALLOWED_DEVIATIONS"
+    )
+    absent = expected - actual
+    assert not absent, (
+        f"{table_name} 登记了刻意偏离 {sorted(absent)} 但库里没有 —— "
+        f"迁移漏跑还是列被删了？"
     )
 
 

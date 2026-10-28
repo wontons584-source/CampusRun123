@@ -995,6 +995,49 @@ def test_available_actions_by_role() -> None:
     assert sm.available_actions(in_progress, ADMIN) == (Action.FORCE_CLOSE,)
 
 
+# ---------------------------------------------------------------------------
+# available_actions 的两种精度：角色层（不传 now） vs 守卫层（传 now）
+# ---------------------------------------------------------------------------
+def test_available_actions_with_guard_precision() -> None:
+    """传 `now` 时再跑一遍纯函数守卫，返回**点了真的会成功**的集合。
+
+    为什么需要它：不传 `now` 只有角色层过滤，`IN_PROGRESS` 且已经 `PICKED_UP`
+    的接单人仍会收到 `PICKED_UP`（点了必 42201）、还能收到 `DELIVER`（跳级必拒）。
+    详情页照角色层渲染就会出现"点了报错的按钮"，用户会以为系统坏了。
+    """
+    in_progress = ctx(status=Status.IN_PROGRESS.value, last_node="PICKED_UP")
+
+    role_level = set(sm.available_actions(in_progress, RUNNER))
+    guard_level = set(sm.available_actions(in_progress, RUNNER, now=NOW))
+
+    # 角色层：接单人的全部按钮（含已经点过的 PICKED_UP、跳级的 DELIVER）
+    assert {Action.PICKED_UP, Action.DELIVER} <= role_level
+    # 守卫层：这两个都必须消失
+    assert Action.PICKED_UP not in guard_level, "已到 PICKED_UP，不该再让点「已取件」"
+    assert Action.DELIVER not in guard_level, "还没到 ON_THE_WAY，跳级点送达必被拒"
+    assert Action.ON_THE_WAY in guard_level
+    assert guard_level <= role_level  # 守卫层永远是角色层的子集
+
+    # 发单人视角：有进度时 T17（无责取消）被守卫挡掉，只剩 T16（投诉）
+    pub_role = set(sm.available_actions(in_progress, PUBLISHER))
+    pub_guard = set(sm.available_actions(in_progress, PUBLISHER, now=NOW))
+    assert Action.CANCEL_LOST in pub_role and Action.CANCEL_LOST not in pub_guard
+    assert Action.DISPUTE_OPENED in pub_guard
+
+
+def test_available_actions_guard_precision_matches_apply() -> None:
+    """一致性：守卫层返回的每个 action，**真的**能用 `apply()` 走通。
+
+    这是这层精度的意义所在 —— 返回值与真实可执行性对齐，前端不必再猜。
+    """
+    in_progress = ctx(status=Status.IN_PROGRESS.value, last_node="PICKED_UP")
+    for action in sm.available_actions(in_progress, RUNNER, now=NOW):
+        repo = MemoryOrderRepo()
+        repo.seed(in_progress.id, in_progress.status)
+        result = apply(repo, in_progress, action, RUNNER, now=NOW)
+        assert result.action is action
+
+
 def test_terminal_states_have_no_actions() -> None:
     for status in (Status.CANCELLED, Status.EXPIRED):
         order = ctx(status=status.value)

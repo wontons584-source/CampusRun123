@@ -46,6 +46,7 @@ from app.modules.order.repo import (
     OrderDraft,
     RepoProgrammingError,
     SqlOrderRepo,
+    count_inflight,
     map_integrity_error,
 )
 from app.modules.order.state_machine import (
@@ -160,13 +161,54 @@ def _draft(
     )
 
 
-def _new_order(db: Session, *, publisher_id: int | None = None) -> tuple[int, int, int]:
-    """建一个订单，返回 `(order_id, publisher_id, runner_id)`。"""
+def _new_order(
+    db: Session,
+    *,
+    publisher_id: int | None = None,
+    track: list[int] | None = None,
+) -> tuple[int, int, int]:
+    """建一个订单，返回 `(order_id, publisher_id, runner_id)`。
+
+    `track`：把本次新建的 **user / poi id** 收集进去，供**会 commit** 的用例在
+    teardown 里一并删除。回滚型用例不需要它（外层事务一 rollback 就没了），
+    但并发/原子性用例必须自己提交脚手架 —— 不清理的话，每跑一次就往演示库里
+    留一串 `驿站-xxxxxx` 和测试用户（实测攒到过 176 条，虽然不影响业务，
+    但演示前 `GET /pois` 的计数会很难看）。
+    """
     uid = publisher_id or _mk_user(db.connection(), "发单人")
     rid = _mk_user(db.connection(), "接单人")
     poi = _mk_poi(db.connection())
+    if track is not None:
+        track.extend([uid, rid, poi])
     order_id = SqlOrderRepo(db).create_order(_draft(uid, poi), now=NOW)
     return order_id, uid, rid
+
+
+def _purge(
+    engine: sa.Engine,
+    *,
+    order_id: int,
+    tracked_ids: list[int] | None = None,
+) -> None:
+    """删除用例自建的脚手架：进度 → 订单 → 用户/POI（按 FK 顺序）。
+
+    顺序不能反：`orders.publisher_id` 是 `ON DELETE RESTRICT`，
+    `from_poi_id` / `to_poi_id` 也是 RESTRICT，先删订单才能删用户与 POI。
+    """
+    ids = list(tracked_ids or [])
+    with Session(engine) as cleanup:
+        cleanup.execute(
+            sa.text("DELETE FROM order_progress WHERE order_id = :o"), {"o": order_id}
+        )
+        cleanup.execute(sa.text("DELETE FROM orders WHERE id = :o"), {"o": order_id})
+        if ids:
+            cleanup.execute(
+                sa.text("DELETE FROM pois WHERE id = ANY(:ids)"), {"ids": ids}
+            )
+            cleanup.execute(
+                sa.text("DELETE FROM users WHERE id = ANY(:ids)"), {"ids": ids}
+            )
+        cleanup.commit()
 
 
 def _accept(db: Session, order_id: int, runner_id: int) -> Any:
@@ -256,7 +298,8 @@ def test_stale_ctx_triggers_40905_and_event_is_rolled_back(engine: sa.Engine) ->
     因此脚手架要 commit + 自己清理。
     """
     with Session(engine) as setup_db:
-        order_id, _uid, rid = _new_order(setup_db)
+        tracked: list[int] = []
+        order_id, _uid, rid = _new_order(setup_db, track=tracked)
         setup_db.commit()
 
     try:
@@ -292,10 +335,7 @@ def test_stale_ctx_triggers_40905_and_event_is_rolled_back(engine: sa.Engine) ->
         assert [a for a, _seq in events] == ["CREATE"], f"CAS 失败的事件不得落库：{events}"
         assert status == "CANCELLED"
     finally:
-        with Session(engine) as cleanup:
-            cleanup.execute(sa.text("DELETE FROM order_progress WHERE order_id=:o"), {"o": order_id})
-            cleanup.execute(sa.text("DELETE FROM orders WHERE id=:o"), {"o": order_id})
-            cleanup.commit()
+        _purge(engine, order_id=order_id, tracked_ids=tracked)
 
 
 # ===========================================================================
@@ -337,7 +377,8 @@ def test_concurrent_append_has_no_seq_collision(engine: sa.Engine) -> None:
     这里用独立连接（每个线程一个 session），所以需要自己清理数据。
     """
     with Session(engine) as setup_db:
-        order_id, _uid, rid = _new_order(setup_db)
+        tracked: list[int] = []
+        order_id, _uid, rid = _new_order(setup_db, track=tracked)
         setup_db.commit()
 
     barrier = threading.Barrier(20)
@@ -382,10 +423,7 @@ def test_concurrent_append_has_no_seq_collision(engine: sa.Engine) -> None:
             seqs = [s for _a, s in _events(check_db, order_id)]
         assert seqs == list(range(1, 22)), f"库内实际 seq 序列不连续：{seqs}"
     finally:
-        with Session(engine) as cleanup:
-            cleanup.execute(sa.text("DELETE FROM order_progress WHERE order_id = :o"), {"o": order_id})
-            cleanup.execute(sa.text("DELETE FROM orders WHERE id = :o"), {"o": order_id})
-            cleanup.commit()
+        _purge(engine, order_id=order_id, tracked_ids=tracked)
 
 
 # ===========================================================================
@@ -397,7 +435,8 @@ def test_two_concurrent_cas_only_one_wins(engine: sa.Engine) -> None:
     这是"抢单不能被两个人同时拿下"的最底层保证（T-20 的 Lua 只是预过滤）。
     """
     with Session(engine) as setup_db:
-        order_id, _uid, rid = _new_order(setup_db)
+        tracked: list[int] = []
+        order_id, _uid, rid = _new_order(setup_db, track=tracked)
         setup_db.commit()
 
     barrier = threading.Barrier(2)
@@ -436,10 +475,7 @@ def test_two_concurrent_cas_only_one_wins(engine: sa.Engine) -> None:
         assert status == "IN_PROGRESS"
         assert accepted == 1, f"冲突的那次不得留下 ACCEPT 事件，实得 {accepted} 条"
     finally:
-        with Session(engine) as cleanup:
-            cleanup.execute(sa.text("DELETE FROM order_progress WHERE order_id = :o"), {"o": order_id})
-            cleanup.execute(sa.text("DELETE FROM orders WHERE id = :o"), {"o": order_id})
-            cleanup.commit()
+        _purge(engine, order_id=order_id, tracked_ids=tracked)
 
 
 # ===========================================================================

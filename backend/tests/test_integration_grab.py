@@ -124,6 +124,40 @@ def redis_env(redis_client: Any) -> Iterator[Any]:
         redis_mod.reset_for_tests()
 
 
+@pytest.fixture(autouse=True)
+def _purge_grab_locks(redis_client: Any) -> Iterator[None]:
+    """每个用例**前后**清掉 `grab:*` 锁键。
+
+    ## 为什么需要（实测过的一次假失败）
+
+    `grab:order:{oid}` 这把锁的键只由订单 id 决定，而订单 id 来自**共享的序列**。
+    两个 pytest 进程（或同一个人连跑两次、且上一轮的锁还没到 3s TTL）撞上同一个
+    `oid` 时，后来者会拿到一个"还带着别人 token 的锁"，`grab_lock` 直接返回 False
+    → 接口抛 `409/40901`（"手慢了"），于是一条本该断言 `40903` 的用例偶发变红。
+
+    那不是被测代码的问题，是**测试之间共享了进程外状态**却没人清理。
+    锁的 TTL 只有 3s，理论上会自愈 —— 但"理论上会自愈"正是 flaky 的来源：
+    跑得快就红、喘口气就绿。
+
+    ## 为什么可以整段前缀清掉
+
+    本文件的用例都是**串行**执行的（pytest 默认单线程），而这个文件里的锁
+    生命周期都包在单个请求里（`grab_order` 的 `finally` 会自己 release）。
+    也就是说：用例结束后，`grab:*` 下任何还在的键都属于"上一轮/上一个进程的残留"，
+    删掉不会影响任何活跃请求。仓库里唯一并发的用例在
+    `test_grab_concurrent.py`，它用自己的 clean-up，且**不依赖**本 fixture。
+    """
+    def _purge() -> None:
+        for key in redis_client.scan_iter("grab:*"):
+            redis_client.delete(key)
+
+    _purge()
+    try:
+        yield
+    finally:
+        _purge()
+
+
 # ---------------------------------------------------------------------------
 # 脚手架
 # ---------------------------------------------------------------------------
@@ -286,11 +320,13 @@ def test_grab_own_order_is_40303(db: Session, redis_env: Any) -> None:
     assert _order_row(db, order_id)["status"] == Status.PENDING.value
 
 
-def test_grab_taken_order_is_40903(db: Session, redis_env: Any) -> None:
-    """已被接走的单再抢 → `409/40903`（非 PENDING）。
+def test_grab_taken_order_is_40901(db: Session, redis_env: Any) -> None:
+    """已被接走的单再抢 → `409/40901`（"手慢了"）。
 
-    注意这里**不是** `40901`：40901 是"你的这次抢占输了"（同一时刻的并发），
-    40903 是"该单当前状态就不允许接"。前者让用户换一单，后者让用户刷新。
+    判据是 `runner_id` 是否为空，不是状态值本身：并发抢单时 19 个失败者看到的
+    库内状态可能是 `PENDING`（赢家还没提交）也可能是 `IN_PROGRESS`（已提交），
+    但对他们而言是同一件事 —— "这单有人了"。所以两种情况必须回同一个码，
+    否则同一次抢单会产出两种错误码，前端得写两套文案。
     """
     order_id, _publisher, runner = _new_order(db)
     service = OrderService(db)
@@ -301,9 +337,30 @@ def test_grab_taken_order_is_40903(db: Session, redis_env: Any) -> None:
         service.grab_order(order_id=order_id, runner_id=other, now=NOW)
     assert (exc_info.value.http_status, exc_info.value.code) == (
         409,
-        ErrCode.ORDER_STATUS_NOT_GRABBABLE,
+        ErrCode.ORDER_ALREADY_TAKEN,
     )
     assert _order_row(db, order_id)["runner_id"] == runner, "不得覆盖第一个接单人"
+
+
+def test_grab_closed_order_is_40903(db: Session, redis_env: Any) -> None:
+    """**没人接过**但已关闭（T3 取消 → `CANCELLED`）→ `409/40903`。
+
+    与上一条的区别只在"有没有人接过"：`runner_id IS NULL` 时用户该做的是
+    "刷新列表"，不是"换一单再试"。
+    """
+    from app.modules.order.state_machine import Actor, apply
+
+    order_id, publisher, runner = _new_order(db)
+    repo = SqlOrderRepo(db)
+    apply(repo, repo.load_ctx(order_id), Action.CANCEL, Actor.publisher(publisher), now=NOW)
+
+    with pytest.raises(ApiError) as exc_info:
+        OrderService(db).grab_order(order_id=order_id, runner_id=runner, now=NOW)
+    assert (exc_info.value.http_status, exc_info.value.code) == (
+        409,
+        ErrCode.ORDER_STATUS_NOT_GRABBABLE,
+    )
+    assert _order_row(db, order_id)["status"] == Status.CANCELLED.value
 
 
 def test_grab_inflight_limit_is_40902(db: Session, redis_env: Any) -> None:
@@ -535,40 +592,46 @@ def test_detail_pick_code_visibility(db: Session, redis_env: Any) -> None:
     service = OrderService(db)
 
     # ① 抢单前：接单人还不是当事人 —— 看不到明文（否则"抢单"这道门槛形同虚设）
-    before = service.detail(order_id=order_id, user_id=runner)
+    before = service.detail(order_id=order_id, user_id=runner, now=NOW)
     assert before["pick_code"] is None
     assert before["pick_code_masked"] is True
 
     # ② 发单人永远可见
-    as_publisher = service.detail(order_id=order_id, user_id=publisher)
+    as_publisher = service.detail(order_id=order_id, user_id=publisher, now=NOW)
     assert as_publisher["pick_code"] == "B-9-2077"
 
     # ③ 抢单后接单人可见
     service.grab_order(order_id=order_id, runner_id=runner, now=NOW)
-    after = service.detail(order_id=order_id, user_id=runner)
+    after = service.detail(order_id=order_id, user_id=runner, now=NOW)
     assert after["pick_code"] == "B-9-2077"
     assert after["pick_code_masked"] is False
 
     # ④ 陌生人永远不可见
-    as_stranger = service.detail(order_id=order_id, user_id=stranger)
+    as_stranger = service.detail(order_id=order_id, user_id=stranger, now=NOW)
     assert as_stranger["pick_code"] is None
     assert as_stranger["pick_code_masked"] is True
 
 
 def test_detail_available_actions_by_status_and_role(db: Session, redis_env: Any) -> None:
-    """`available_actions[]` 随「状态 × 角色」变化（FR-CENTER-05）。"""
+    """`available_actions[]` 随「状态 × 角色」变化（FR-CENTER-05）。
+
+    **每个 `detail()` 都必须传 `now=NOW`**：详情是守卫层精度，不传就用进程真实时钟，
+    而本用例的订单 deadline 是 `NOW + 1h`（2025-06-01）—— 拿 2026 年的"现在"去判，
+    订单当然已过期，`ACCEPT` 会被正确地隐藏，用例就会平白无故地红。
+    这也正说明守卫层在干活（读的是注入时刻，不是写死的默认值）。
+    """
     order_id, publisher, runner = _new_order(db)
     service = OrderService(db)
 
-    pending_runner = service.detail(order_id=order_id, user_id=runner)
+    pending_runner = service.detail(order_id=order_id, user_id=runner, now=NOW)
     assert pending_runner["available_actions"] == ["ACCEPT"], "PENDING 时接单人能接单"
 
-    pending_publisher = service.detail(order_id=order_id, user_id=publisher)
+    pending_publisher = service.detail(order_id=order_id, user_id=publisher, now=NOW)
     assert pending_publisher["available_actions"] == ["CANCEL"], "PENDING 时发单人能取消"
 
     service.grab_order(order_id=order_id, runner_id=runner, now=NOW)
 
-    in_progress_runner = service.detail(order_id=order_id, user_id=runner)
+    in_progress_runner = service.detail(order_id=order_id, user_id=runner, now=NOW)
     assert "PICKED_UP" in in_progress_runner["available_actions"]
     assert "CONFIRM" not in in_progress_runner["available_actions"], (
         "进行中的单不该出现「确认收货」按钮"
@@ -637,3 +700,63 @@ def test_full_lifecycle_end_to_end(db: Session, redis_env: Any) -> None:
         {"o": order_id},
     ).all()
     assert project_status([(str(a), str(s)) for a, s in rows]) == ctx.status
+
+
+# ===========================================================================
+# 7. 详情页的 `available_actions[]` 必须是**守卫层**精度
+# ===========================================================================
+# 这三条是给录屏准备的可视证据：按钮集合必须与"点了会不会成功"完全一致。
+# 只看角色层的旧实现会让"已取件"之后再点一次"已取件"→ 42201，画面很难看。
+def test_detail_hides_already_done_nodes(db: Session, redis_env: Any) -> None:
+    """判据 ①：接单人已 `PICKED_UP` → 详情里**不再**给 `PICKED_UP` / `DELIVER`。
+
+    `DELIVER` 跳级必 `42201`（`_node_in_order` 守卫），`PICKED_UP` 重复点是幂等但
+    无意义 —— 两个都不该出现在"当前可做的动作"里。
+    """
+    order_id, _publisher, runner = _new_order(db)
+    service = OrderService(db)
+    service.grab_order(order_id=order_id, runner_id=runner, now=NOW)
+    service.advance_progress(order_id=order_id, user_id=runner, action=Action.PICKED_UP, now=NOW)
+
+    actions = service.detail(order_id=order_id, user_id=runner, now=NOW)["available_actions"]
+
+    assert "ON_THE_WAY" in actions, f"取件之后唯一下一步是配送中，实得 {actions}"
+    assert "PICKED_UP" not in actions, f"已取件不该再出现「已取件」按钮，实得 {actions}"
+    assert "DELIVER" not in actions, f"跳级送达必须被隐藏（点了必 42201），实得 {actions}"
+
+
+def test_detail_t17_available_before_runner_progress(db: Session, redis_env: Any) -> None:
+    """判据 ②：发单人 + 接单人**无任何进度** + 静默 ≥45min → `CANCEL_LOST`（T17）可走。
+
+    注意 45 分钟这个前提：T17 的语义是"接单人失联"，刚抢单 1 分钟就允许无责取消
+    会把它变成"发单人随时反悔"的漏洞。所以判据是**静默 46 分钟**而非"没进度"。
+    """
+    order_id, publisher, runner = _new_order(db)
+    service = OrderService(db)
+    service.grab_order(order_id=order_id, runner_id=runner, now=NOW)
+
+    later = NOW + dt.timedelta(minutes=46)
+    actions = service.detail(order_id=order_id, user_id=publisher, now=later)["available_actions"]
+
+    assert "CANCEL_LOST" in actions, f"静默 46 分钟且无进度，T17 必须可走，实得 {actions}"
+    assert "DISPUTE_OPENED" not in actions, f"无进度时应走无责取消而不是投诉，实得 {actions}"
+
+
+def test_detail_t16_replaces_t17_after_runner_progress(db: Session, redis_env: Any) -> None:
+    """判据 ③：接单人报过进度 → `CANCEL_LOST` 消失、`DISPUTE_OPENED`（T16）出现。
+
+    这是 T16/T17 的双出口在界面上的样子：**同一个按钮位置，从"无责取消"换成
+    "发起投诉"**。两个守卫读同一个 `probe_progress()` 且互为反条件，
+    所以任何时刻必有一个返回 False —— 界面上永远只出现一个，不可能同时出现。
+    """
+    order_id, publisher, runner = _new_order(db)
+    service = OrderService(db)
+    service.grab_order(order_id=order_id, runner_id=runner, now=NOW)
+    service.advance_progress(order_id=order_id, user_id=runner, action=Action.PICKED_UP, now=NOW)
+
+    later = NOW + dt.timedelta(minutes=46)
+    actions = service.detail(order_id=order_id, user_id=publisher, now=later)["available_actions"]
+
+    assert "DISPUTE_OPENED" in actions, f"有进度 + 静默 46min，T16 必须可走，实得 {actions}"
+    assert "CANCEL_LOST" not in actions, f"接了单还去取件了，不能再无责取消，实得 {actions}"
+    assert not {"CANCEL_LOST", "DISPUTE_OPENED"} <= set(actions), "T16/T17 互斥，不能同时出现"
