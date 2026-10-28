@@ -9,7 +9,7 @@
  * 这样 mock 与真实接口的错误口径完全一致。
  */
 
-import { ApiError, isNotFoundError } from './errors';
+import { ApiError } from './errors';
 import { getToken, clearToken } from './token';
 import {
   mockConfirm,
@@ -132,30 +132,6 @@ function unwrapList<T>(raw: ListEnvelope<T> | T[]): T[] {
   return Array.isArray(raw.items) ? raw.items : [];
 }
 
-/**
- * docs 6.1 版「我的订单」：`GET /me/orders?role=publisher|runner`。
- *
- * `role` 是二选一，所以拉两次再合并；同 id 去重，防止极端情况下两边都返回同一单。
- * 只取第一页（前端不翻页），`next_cursor` 忽略。
- */
-async function fetchMyOrdersByRole(): Promise<HallOrder[]> {
-  const [asPublisher, asRunner] = await Promise.all([
-    http<ListEnvelope<HallOrder> | HallOrder[]>('/me/orders?role=publisher', 'GET'),
-    http<ListEnvelope<HallOrder> | HallOrder[]>('/me/orders?role=runner', 'GET'),
-  ]);
-
-  const merged = new Map<number, HallOrder>();
-  unwrapList(asPublisher).forEach((order) => {
-    merged.set(order.id, { ...order, my_role: 'PUBLISHER' });
-  });
-  unwrapList(asRunner).forEach((order) => {
-    if (!merged.has(order.id)) {
-      merged.set(order.id, { ...order, my_role: 'RUNNER' });
-    }
-  });
-  return Array.from(merged.values());
-}
-
 export const api = {
   /** 注册。 */
   register(input: { nickname: string; phone: string; password: string }): Promise<AuthResult> {
@@ -210,29 +186,13 @@ export const api = {
   },
 
   /**
-   * 我的订单（我发的 + 我接的）。
-   *
-   * ⚠️ 这条接口目前有**两版说法**，后端还没最终落地，前端做了双路径降级：
-   *  A) `GET /orders/mine` → `{items,total}`（team-lead 同步的后端新增接口，与 hall 同构）
-   *  B) `GET /me/orders?role=publisher|runner` → `{items,next_cursor,has_more}`（docs 6.1，游标分页）
-   * 先打 A；A 返回 404/404xx 时退到 B，并按 role 各拉一次合并、顺带打上 `my_role`。
-   * 这样无论后端最终落哪一版，UI 都不用改。
+   * 我的订单（我发的 + 我接的）：`GET /orders/mine` → `data = {items,total}`（与 hall 同构）。
+   * 每条带 `my_role`（PUBLISHER / RUNNER），用于卡片上的「我发的 / 我接的」。
    */
   myOrders(): Promise<HallOrder[]> {
     return route(
       () => mockMyOrders(),
-      async () => {
-        try {
-          return unwrapList(
-            await http<ListEnvelope<HallOrder> | HallOrder[]>('/orders/mine', 'GET'),
-          );
-        } catch (error) {
-          if (!isNotFoundError(error)) {
-            throw error;
-          }
-          return fetchMyOrdersByRole();
-        }
-      },
+      async () => unwrapList(await http<ListEnvelope<HallOrder> | HallOrder[]>('/orders/mine', 'GET')),
     );
   },
 

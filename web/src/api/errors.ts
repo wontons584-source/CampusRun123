@@ -22,14 +22,6 @@ export function isAuthError(err: unknown): boolean {
   return err instanceof ApiError && err.code >= 40100 && err.code < 40200;
 }
 
-/** 是否为「接口不存在」（404 / 404xx）——用于多版接口路径的降级探测。 */
-export function isNotFoundError(err: unknown): boolean {
-  if (!(err instanceof ApiError)) {
-    return false;
-  }
-  return err.code === 404 || (err.code >= 40400 && err.code < 40500);
-}
-
 /**
  * 是否为「状态已被并发改动 / 非法迁移」。
  *

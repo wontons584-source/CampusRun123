@@ -316,6 +316,37 @@ function saveDb(target: MockDb): void {
 }
 
 let db: MockDb = loadDb();
+refreshExpiredDeadlines(db);
+
+/**
+ * 演示友好：种子单的 `deadline` 是按「首次打开的时刻」算的，
+ * 隔几小时/隔天再打开就全部「已超时」，大厅空空如也没法录屏。
+ *
+ * 这里在加载时把「已过期但仍是 PENDING」的单按原期望时长往后顺延，
+ * 保证任何时候打开都有单可抢。真实后端不会有这段逻辑。
+ */
+function refreshExpiredDeadlines(target: MockDb): void {
+  const now = Date.now();
+  const windowMinutes: Record<ExpectMinutes, number> = { 30: 30, 60: 60, 120: 120, 720: 720 };
+  let changed = false;
+
+  target.orders.forEach((order) => {
+    if (order.status !== 'PENDING') {
+      return;
+    }
+    if (new Date(order.deadline).getTime() > now + 120_000) {
+      return;
+    }
+    // 至少留 2 分钟以上，倒计时不会在读秒时突然归零
+    const minutes = Math.max(15, windowMinutes[order.expect_minutes]);
+    order.deadline = new Date(now + minutes * 60_000).toISOString();
+    changed = true;
+  });
+
+  if (changed) {
+    saveDb(target);
+  }
+}
 
 /** 重置 mock 数据（调试用：控制台 `__campusRunResetMock()` 后刷新）。 */
 export function resetMockDb(): void {
