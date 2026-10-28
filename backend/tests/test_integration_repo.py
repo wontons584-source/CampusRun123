@@ -174,9 +174,13 @@ def _accept(db: Session, order_id: int, runner_id: int) -> Any:
 
     2025-xx 修复后不再手工 `UPDATE orders SET runner_id=...` ——
     那正是被漏掉的那个写入点，用例必须走真实路径才能守住它。
+
+    `viewer_id=runner_id` 也是真实路径的一部分：BR-16 的在途数要按**抢单人**算，
+    而此刻本单 `runner_id` 还是 NULL，不传 viewer 会算成 0。
     """
     repo = SqlOrderRepo(db)
-    return apply(repo, repo.load_ctx(order_id), Action.ACCEPT, Actor.runner(runner_id), now=NOW)
+    ctx = repo.load_ctx(order_id, viewer_id=runner_id)
+    return apply(repo, ctx, Action.ACCEPT, Actor.runner(runner_id), now=NOW)
 
 
 def _count(db: Session, table: str, **where: Any) -> int:
@@ -662,6 +666,61 @@ def test_load_ctx_uses_at_most_two_statements(engine: sa.Engine, db: Session) ->
     assert len(statements) == 1, "期望单条聚合查询"
 
 
+def test_load_ctx_inflight_counts_the_viewer_not_the_order_runner(db: Session) -> None:
+    """BR-16 的计数口径：算「**谁要来抢单**」的在途数，不是「本单的接单人」。
+
+    抢单发生在 `status='PENDING'`、`runner_id IS NULL` 的时刻。初版 SQL 写的是
+    `WHERE o.runner_id IS NOT NULL AND x.runner_id = o.runner_id`，第一个条件恒假，
+    计数永远是 0 → `guard_grab` 的 `inflight < 3` 永远放行 →
+    **手上已有 3 单在途的接单人还能抢第 4 单**（engineer-2 的集成用例实际撞到）。
+
+    修法：`load_ctx(viewer_id=...)`；不传时回落到本单接单人（旧语义不变）。
+    """
+    repo = SqlOrderRepo(db)
+    busy_runner = _mk_user(db.connection(), "在途3单的接单人")
+    idle_runner = _mk_user(db.connection(), "空闲接单人")
+
+    # ① 让 busy_runner 手上真的有 3 单 IN_PROGRESS
+    for index in range(3):
+        publisher = _mk_user(db.connection(), f"发单人{index}")
+        poi = _mk_poi(db.connection())
+        order_id = repo.create_order(_draft(publisher, poi), now=NOW)
+        _accept(db, order_id, busy_runner)
+
+    assert count_inflight(db, busy_runner) == 3
+
+    # ② 再造一个**待接单**的单（正是抢单发生的那一刻）
+    publisher = _mk_user(db.connection(), "待接单的发单人")
+    poi = _mk_poi(db.connection())
+    pending_id = repo.create_order(_draft(publisher, poi), now=NOW)
+
+    # 传 viewer：按抢单人算 → 3（守卫 3 < 3 为假 → 正确拒绝第 4 单）
+    assert repo.load_ctx(pending_id, viewer_id=busy_runner).runner_inflight_count == 3
+    # 空闲接单人 → 0
+    assert repo.load_ctx(pending_id, viewer_id=idle_runner).runner_inflight_count == 0
+    # 不传 viewer：回落到本单接单人（PENDING 时是 NULL）→ 0，旧语义保持不变
+    assert repo.load_ctx(pending_id).runner_inflight_count == 0
+    # 已接单后，不传 viewer 也能拿到本单接单人的在途数
+    assert repo.load_ctx(order_id).runner_inflight_count == 3
+
+
+def test_viewer_id_does_not_leak_into_other_derived_facts(db: Session) -> None:
+    """`viewer_id` 只影响在途数，不能顺手改变别的派生事实（防"顺手多算一个"）。"""
+    repo = SqlOrderRepo(db)
+    order_id, uid, rid = _new_order(db)
+    _accept(db, order_id, rid)
+
+    without = repo.load_ctx(order_id)
+    with_viewer = repo.load_ctx(order_id, viewer_id=rid)
+    assert with_viewer.runner_inflight_count == without.runner_inflight_count == 1
+    for field in ("status", "runner_id", "publisher_id", "dispute_count", "urge_count",
+                  "last_node", "has_runner_evidence", "publisher_pending_count"):
+        assert getattr(without, field) == getattr(with_viewer, field), (
+            f"{field} 不该受 viewer_id 影响"
+        )
+    assert uid == with_viewer.publisher_id
+
+
 # ===========================================================================
 # 11. 原子性：status 与本行字段必须在**同一条 UPDATE** 里
 # ===========================================================================
@@ -909,7 +968,7 @@ def test_lua_scripts_load_and_execute(redis_client: Any) -> None:
 
 def test_lua_recovers_from_script_flush(redis_client: Any) -> None:
     """`SCRIPT FLUSH` 后必须靠 `NOSCRIPT` 自动重载，否则线上表现为"Redis 一重启全 500"。"""
-    from app.db.redis import grab_lock, grab_script
+    from app.db.redis import grab_lock, grab_script, k_grab_order
 
     grab_script.load(redis_client)
     stale_sha = grab_script.sha
@@ -917,7 +976,11 @@ def test_lua_recovers_from_script_flush(redis_client: Any) -> None:
 
     redis_client.script_flush()          # 模拟 Redis 重启 / 主从切换
     order_id = 910_002
-    key = f"test:grab:{order_id}"
+    # 清理必须用**键名规范的构造函数**：`grab_lock` 写的是 `grab:order:{id}`，
+    # 曾经这里手写成 `f"test:grab:{id}"`（一个从来不存在的键），于是锁一泄漏就得
+    # 靠 3s TTL 兜底 —— 两次连续跑测试时，第二次会在 `SET NX` 上拿到 False 而
+    # 假失败（不是脚本重载失败，是上一轮的锁还在）。
+    key = k_grab_order(order_id)
     try:
         # 缓存里的 sha 已失效 → 内部应捕获 NOSCRIPT、重载、重试
         assert grab_lock(redis_client, order_id=order_id, token="tok", ttl_ms=5000) is True

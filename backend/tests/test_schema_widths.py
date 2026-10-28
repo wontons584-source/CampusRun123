@@ -102,6 +102,10 @@ FREE_TEXT_COLUMNS: frozenset[str] = frozenset(
         "users.nickname",
         "users.avatar_url",            # Text()，无宽度上限
         "users.phone_mask",
+        # bcrypt 哈希（0003 新增）：**不是枚举**，宽度只需装得下 60 字符的
+        # `$2b$12$...`（给到 128 是为了将来换 argon2id）。它不可逆，所以宽度
+        # 不足的后果是"哈希被截断 ⇒ 所有人都登录不上"，而不是"值写不进去"。
+        "users.password_hash",
         "users.dept",
         "users.grade",
         "admin_audit_logs.note",

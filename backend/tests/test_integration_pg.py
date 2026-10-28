@@ -491,7 +491,27 @@ def test_migration_is_at_head(conn: sa.Connection) -> None:
     漏改会在这里红，提醒迁移测试也要跟着走。
     """
     revision = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert revision == "0002", f"当前修订 {revision}，期望 0002（head）"
+    assert revision == "0003", f"当前修订 {revision}，期望 0003（head）"
+
+
+def test_password_hash_column_exists_in_live_db(conn: sa.Connection) -> None:
+    """0003（`users.password_hash`）必须真的落在库里，且宽度装得下 bcrypt 哈希。
+
+    `alembic upgrade head` 成功 ≠ 结构正确：列存在但宽度不足（比如照抄文档的
+    `varchar(60)`）时，任何 60 字符的 bcrypt 输出都刚好卡在边界上，加个前缀
+    就全站登录失败 —— 而这类错误**单元测试永远发现不了**（内存模型不看宽度）。
+    """
+    column = conn.execute(
+        sa.text(
+            "SELECT data_type, character_maximum_length, is_nullable "
+            "FROM information_schema.columns "
+            "WHERE table_name = 'users' AND column_name = 'password_hash'"
+        )
+    ).mappings().one_or_none()
+    assert column is not None, "0003 迁移未生效：users.password_hash 不存在"
+    assert column["data_type"] == "character varying"
+    assert column["character_maximum_length"] == 128
+    assert column["is_nullable"] == "YES", "存量用户没有密码，这一列必须可空"
 
 
 def test_generated_column_and_partial_indexes_exist_in_live_db(conn: sa.Connection) -> None:

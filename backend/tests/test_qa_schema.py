@@ -19,6 +19,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 DOC_COLUMNS: dict[str, set[str]] = {
     "users": {
         "id", "student_no", "nickname", "avatar_url", "phone_enc", "phone_mask",
+        # `password_hash` 是 0003 迁移新增（T-07 简化认证），5.2 表结构里没有它。
+        # 登记在这里是**刻意的**：本用例的职责是"代码里的列集合 == 文档列集合"，
+        # 让每一次结构偏离都必须显式写一行，而不是悄悄漂移。
+        "password_hash",
         "dept", "grade", "verify_status", "credit_score", "credit_level", "status",
         "token_version", "is_runner_mode", "notify_settings", "created_at", "updated_at",
     },
