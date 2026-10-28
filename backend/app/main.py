@@ -190,10 +190,15 @@ def create_app() -> FastAPI:
         """
         return JSONResponse(status_code=200, content=ok({"trace_id": get_trace_id()}))
 
-    # ---- 业务路由挂载（T-13 起）----
+    # ---- 业务路由挂载（T-07 认证 / T-13 发单 / T-20 抢单）----
+    from app.api.v1 import auth as auth_api
     from app.api.v1 import orders as orders_api
+    from app.api.v1 import pois as pois_api
 
-    app.include_router(orders_api.router, prefix="/api/v1")
+    app.include_router(auth_api.router, prefix="/api/v1")      # /auth/register, /auth/login
+    app.include_router(auth_api.me_router, prefix="/api/v1")   # /me
+    app.include_router(pois_api.router, prefix="/api/v1")      # /pois
+    app.include_router(orders_api.router, prefix="/api/v1")    # /orders ...
 
     return app
 

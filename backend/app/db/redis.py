@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Final
 
 import redis
-from redis.exceptions import NoScriptError
+from redis.exceptions import NoScriptError, WatchError
 
 from app.core.config import settings
 from app.core.errors import ApiError, ErrCode
@@ -264,6 +264,51 @@ def grab_lock(client: redis.Redis, *, order_id: int, token: str, ttl_ms: int = 3
     return int(result) == 1
 
 
+def grab_unlock(client: redis.Redis, *, order_id: int, token: str, retries: int = 3) -> bool:
+    """释放抢单锁，**校验 token**（只删自己持有的那把）。
+
+    ## 为什么不能直接 `DEL grab:order:{oid}`
+
+    锁有 3s TTL：A 的请求如果因为 GC/网络抖动卡住超过 3s，锁会自动过期，
+    此时 B 已经拿到了同一把锁。A 恢复后再 `DEL`，删掉的是 **B 的锁** ——
+    于是 C 也能拿到锁，同一单在同一时刻有三个持有者，"串行化"彻底失效。
+    所以释放必须是 compare-and-delete：值等于自己的 token 才删。
+
+    ## 为什么用 `WATCH/MULTI` 而不是新加一个 Lua 脚本
+
+    `LUA_SCRIPTS` 注册表是「全部脚本的唯一清单」，加进去会改变
+    `test_lua_scripts_load_and_execute` 对脚本集合的断言（这条断言本身有价值：
+    它保证每个脚本都能被预加载）。`WATCH/MULTI` 是同一事务语义的客户端实现，
+    争用窗口只有"比对值与删除"之间，而这段时间恰好被 Redis 的乐观锁覆盖。
+
+    Args:
+        client: Redis 客户端。
+        order_id: 订单 id。
+        token: 抢单时用的 token（锁值）。
+        retries: `WATCH` 冲突重试次数；耗尽后返回 `False`（TTL 会兜底清掉）。
+
+    Returns:
+        `True` 表示删除了自己的锁；`False` 表示锁不存在或不属于自己（无需处理）。
+    """
+    key = k_grab_order(order_id)
+    expected = token.encode("utf-8")
+    for _attempt in range(max(1, retries)):
+        with client.pipeline() as pipe:
+            try:
+                pipe.watch(key)
+                current = pipe.get(key)
+                if current is None or bytes(current) != expected:
+                    pipe.unwatch()
+                    return False
+                pipe.multi()
+                pipe.delete(key)
+                pipe.execute()
+                return True
+            except WatchError:
+                continue
+    return False
+
+
 def bump_quota(client: redis.Redis, *, user_id: int, kind: str = "10m", ttl_s: int = 600) -> int:
     """频控计数：`INCR` 后首次设置 `EXPIRE`，返回当前计数。
 
@@ -308,6 +353,7 @@ __all__ = [
     "get_redis",
     "grab_lock",
     "grab_script",
+    "grab_unlock",
     "heartbeat",
     "k_alive",
     "k_beat_heartbeat",

@@ -79,3 +79,84 @@ class CreateOrderResponse(BaseModel):
     """发单成功响应。"""
 
     order: OrderBrief
+
+
+# ---------------------------------------------------------------------------
+# 履约（T-20 抢单之后的节点推进，FR-FULFILL）
+# ---------------------------------------------------------------------------
+#: 接单人可推进的节点。**刻意不含 `DELIVER` 之外的终态动作**：
+#: 确认收货是发单人的 `POST /orders/{id}/confirm`，不是进度动作。
+PROGRESS_ACTIONS: tuple[str, ...] = ("PICKED_UP", "ON_THE_WAY", "DELIVER")
+
+
+class ProgressRequest(BaseModel):
+    """履约进度上报（`POST /orders/{id}/progress`）。
+
+    `action` 只接受三个节点值，且顺序由状态机守卫强制
+    （`PICKED_UP → ON_THE_WAY → DELIVER`，跳级一律 `422/42201`）。
+
+    **不校验顺序**在这里：顺序是状态机的事（`_node_in_order`），
+    如果 Pydantic 也判一次，就有两份规则、两个错误码，
+    前端要处理两种"跳级失败"。DTO 只管"值是不是这三个之一"。
+    """
+
+    action: Literal["PICKED_UP", "ON_THE_WAY", "DELIVER"] = Field(description="推进到哪个节点")
+    note: str | None = Field(default=None, max_length=DESCRIPTION_MAX, description="备注")
+    images: list[str] = Field(
+        default_factory=list, max_length=IMAGES_MAX, description="送达凭证（最多 3 张）"
+    )
+
+
+class OrderDetailOut(BaseModel):
+    """订单详情（`GET /orders/{id}`）。
+
+    `pick_code` 是**唯一**可能带明文取件码的字段：
+    - 发单人本人 → 明文；
+    - 已抢到该单的接单人（`status ∈ {IN_PROGRESS, DELIVERED, COMPLETED}`）→ 明文；
+    - 其他人（含未抢单的接单人、陌生人）→ `None`，并置 `pick_code_masked=True`。
+
+    这不是展示细节，是 FR-ORDER-10 的核心：取件码泄露 = 别人可以直接去驿站把件取走。
+    """
+
+    id: int
+    order_no: str
+    status: str
+    type: str
+    reward: str
+    from_poi_id: int
+    from_poi_name: str
+    to_poi_id: int
+    to_poi_name: str
+    description: str | None = None
+    images: list[str] = Field(default_factory=list)
+    expect_minutes: int
+    deadline: str
+    created_at: str
+    accepted_at: str | None = None
+    delivered_at: str | None = None
+    completed_at: str | None = None
+    is_late: bool = False
+    publisher_id: int
+    runner_id: int | None = None
+    publisher_nickname: str | None = None
+    runner_nickname: str | None = None
+    pick_code: str | None = Field(default=None, description="仅当事人可见明文")
+    pick_code_masked: bool = Field(default=False, description="True 表示对该调用方不可见")
+    available_actions: list[str] = Field(default_factory=list)
+
+
+__all__ = [
+    "DESCRIPTION_MAX",
+    "IMAGES_MAX",
+    "ORDER_TYPES",
+    "PICK_CODE_MAX",
+    "PICK_CODE_MIN",
+    "PROGRESS_ACTIONS",
+    "REWARD_MAX",
+    "REWARD_MIN",
+    "CreateOrderRequest",
+    "CreateOrderResponse",
+    "OrderBrief",
+    "OrderDetailOut",
+    "ProgressRequest",
+]

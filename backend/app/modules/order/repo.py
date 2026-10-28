@@ -220,6 +220,19 @@ def map_integrity_error(exc: IntegrityError, *, default_message: str = "数据�
 #: `load_ctx` 的**单条**查询：订单行 + 7 个派生事实。
 #: 为什么压成一条：T2 抢单/T16 投诉都是用户点按钮的热路径，
 #: 一条 SQL 一次往返，比"查订单再查 6 次聚合"少 6 个 RTT（N+1 的直接解法）。
+#:
+#: ## `runner_inflight_count` 的口径坑（真库 + 并发用例挖出来的 P0）
+#:
+#: BR-16「在途 ≤3」问的是「**谁要来抢单**，他手上几单」，而不是「本单的接单人手上几单」。
+#: 抢单发生在 `status='PENDING'`、`runner_id IS NULL` 的时刻 —— 初版写成
+#: `WHERE o.runner_id IS NOT NULL AND x.runner_id = o.runner_id` 时，
+#: 第一个条件恒假，计数永远是 0，于是 `guard_grab` 的 `inflight < 3` **永远放行**：
+#: 手上已有 3 单在途的接单人还能继续抢第 4 单（engineer-2 的集成用例实际撞到了）。
+#:
+#: 修法：`viewer_id` 由调用方传入（抢单/接单类操作传 `actor.id`），
+#: 用 `COALESCE(:viewer_id, o.runner_id)` 回落到本单接单人 —— 不传时行为与旧版一致。
+#: 显式 `CAST(:viewer_id AS bigint)` 是必需的：PG 对全 NULL 参数无法推断类型，
+#: 直接 `COALESCE(:viewer_id, o.runner_id)` 会报 "could not determine data type"。
 _LOAD_CTX_SQL: Final[str] = f"""
 SELECT
     o.id, o.status, o.type, o.publisher_id, o.runner_id,
@@ -242,8 +255,7 @@ SELECT
           AND p.action IN ({_NODE_LITERAL})
         ORDER BY p.seq DESC LIMIT 1) AS last_node,
     (SELECT count(*) FROM orders x
-        WHERE o.runner_id IS NOT NULL
-          AND x.runner_id = o.runner_id
+        WHERE x.runner_id = COALESCE(CAST(:viewer_id AS bigint), o.runner_id)
           AND x.status = 'IN_PROGRESS') AS runner_inflight_count,
     (SELECT count(*) FROM orders y
         WHERE y.publisher_id = o.publisher_id
@@ -294,13 +306,28 @@ class SqlOrderRepo:
         self._clock = clock or default_clock
 
     # ------------------------------------------------------------------ 读
-    def load_ctx(self, order_id: int) -> OrderCtx:
+    def load_ctx(self, order_id: int, *, viewer_id: int | None = None) -> OrderCtx:
         """一次查询拿全 `OrderCtx`（含 T16/T17 需要的进度事实）。
 
         抛出 `404/40401` 而不是 `None`：调用方拿到 `None` 之后大概率会
         `ctx.status` 空指针，不如在边界上就把"订单不存在"变成一个明确的业务错误。
+
+        Args:
+            order_id: 目标订单。
+            viewer_id: **谁在操作**。只影响 `runner_inflight_count`（BR-16 在途 ≤3）：
+                抢单/接单类操作必须传 `actor.id` —— 因为抢单那一刻本单的
+                `runner_id` 还是 NULL，按本单接单人算永远是 0，守卫会形同虚设。
+                不传时回落到 `orders.runner_id`（"查这一单时看它自己的接单人"），
+                与旧行为完全一致，老调用点零影响。
         """
-        row = self._db.execute(sa.text(_LOAD_CTX_SQL), {"order_id": order_id}).mappings().first()
+        row = (
+            self._db.execute(
+                sa.text(_LOAD_CTX_SQL),
+                {"order_id": order_id, "viewer_id": viewer_id},
+            )
+            .mappings()
+            .first()
+        )
         if row is None:
             raise ApiError(404, ErrCode.ORDER_NOT_FOUND, "订单不存在")
 
@@ -328,10 +355,12 @@ class SqlOrderRepo:
             order_type=str(row["type"]),
         )
 
-    def load_ctx_if_exists(self, order_id: int) -> OrderCtx | None:
+    def load_ctx_if_exists(
+        self, order_id: int, *, viewer_id: int | None = None
+    ) -> OrderCtx | None:
         """`load_ctx` 的容错版：不存在返回 `None`（供后台批量对账用）。"""
         try:
-            return self.load_ctx(order_id)
+            return self.load_ctx(order_id, viewer_id=viewer_id)
         except ApiError as exc:
             if exc.code == ErrCode.ORDER_NOT_FOUND:
                 return None
