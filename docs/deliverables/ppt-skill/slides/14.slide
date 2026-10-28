@@ -1,0 +1,31 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      技巧②：替身能证明逻辑，证明不了环境
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 8, flex: 1 }}>
+    <Box style={{ flexDirection: 'row', gap: 12 }}>
+      <Text style={{ flex: 1, fontSize: 15, fontWeight: 'bold', color: '#94A3B8' }}>内存替身会漏掉的问题</Text>
+      <Text style={{ width: 90, fontSize: 15, fontWeight: 'bold', color: '#94A3B8', textAlign: 'center' }}>单测能抓吗</Text>
+    </Box>
+    {[
+      { t: '类型 / 宽度：varchar(8) 装不下 UNSETTLED(9)' },
+      { t: '约束：唯一索引冲突、外键顺序' },
+      { t: '事务与隔离：CAS 的 rowcount、并发读到的旧值' },
+      { t: '默认值 / 生成列：DEFAULT 值本身超宽、生成列表达式' },
+      { t: 'SQL 语义：NULL 比较、时区、ORDER BY 稳定性' },
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', borderBottom: '1px solid #E5E7EB', paddingVertical: 8 }}>
+        <Text style={{ flex: 1, fontSize: 16, color: '#1E293B', lineHeight: 1.4 }}>{r.t}</Text>
+        <Text style={{ width: 90, fontSize: 16, color: '#DC2626', fontWeight: 'bold', textAlign: 'center' }}>✗ 不能</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#EFF6FF', borderRadius: 8, padding: 16, marginTop: 18 }}>
+    <Text style={{ fontSize: 16, color: '#1E293B', lineHeight: 1.5 }}>
+      所以我的分层：<span style={{ fontWeight: 'bold' }}>单元测试</span>（逻辑、守卫、矩阵，快）→ <span style={{ fontWeight: 'bold' }}>集成测试</span>（92 条，真事务真并发真 Lua，慢）→ <span style={{ fontWeight: 'bold' }}>判据式并发测试</span>（100 并发打一单，断言写死结果）。同一件事在两个层面各写一次。
+    </Text>
+  </Box>
+</Slide>

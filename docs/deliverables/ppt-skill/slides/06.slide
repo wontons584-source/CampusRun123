@@ -1,0 +1,31 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      阶段② 架构：Prompt 1 · 让 AI 做架构设计
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1.2, background: '#0F172A', borderRadius: 10, padding: 20, justifyContent: 'center' }}>
+      <Text style={{ fontFamily: 'Consolas, monospace', fontSize: 13, color: '#E2E8F0', lineHeight: 1.55 }}>
+        {'【任务】为"校园跑腿"订单系统做架构设计，只输出 5 项，不要写代码：\n1. 模块划分：职责 + 边界 + 纯函数/IO\n2. 核心表 DDL 要点（字段、类型、约束）\n3. 索引清单：每条必须写"服务哪个查询"\n4. 并发分析：每个竞争点 + 机制 + 为什么\n5. 明确的"不做"清单 + 不做的后果\n\n【约束】\n- 不引入消息队列、微服务、CQRS\n- 每个决定给"为什么不用另一个方案"\n- 信息不足列到"待确认"，不要自己假设\n\n【格式】表格优先，写"因为…所以…"，\n不要写"最佳实践"'}
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
+      {[
+        { c: '「只输出 5 项，不要代码」', d: '防它跳过架构直接写代码' },
+        { c: '「每条索引写服务哪个查询」', d: '防它堆一堆看似专业的索引' },
+        { c: '「为什么不用另一个方案」', d: '防套话——必须说出被否掉的方案' },
+        { c: '「信息不足列待确认」', d: '防编造——救了我 3 处没想过的点' },
+      ].map((r, i) => (
+        <Box key={i} style={{ flexDirection: 'column', gap: 2 }}>
+          <Text style={{ fontSize: 16, color: '#2563EB', fontWeight: 'bold', lineHeight: 1.4 }}>{r.c}</Text>
+          <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.4 }}>{r.d}</Text>
+        </Box>
+      ))}
+      <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5, marginTop: 4 }}>
+        这四条约束决定了输出质量。实际效果：一次输出里有 3 处「待确认」是我确实没想过的——在途单上限、Redis 与 DB 谁权威、争议恢复后超时怎么算。
+      </Text>
+    </Box>
+  </Box>
+</Slide>

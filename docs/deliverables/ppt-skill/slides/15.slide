@@ -1,0 +1,41 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 22 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      技巧③：一个人开发，最怕「改着改着不知道哪步坏了」
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 14 }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>提交粒度</Text>
+      <Text style={{ fontSize: 16, color: '#64748B', lineHeight: 1.5 }}>
+        一个任务一个提交，一个提交只做一件事。36 次提交的实际分布：
+      </Text>
+      <Box style={{ flexDirection: 'row', gap: 8 }}>
+        {[['feat', 14, '#2563EB'], ['docs', 10, '#64748B'], ['test', 7, '#06B6D4'], ['chore', 3, '#94A3B8'], ['fix', 2, '#DC2626']].map((t, i) => (
+          <Box key={i} style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 8, padding: 10, alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: t[2] as string, lineHeight: 1 }}>{t[1]}</Text>
+            <Text style={{ fontSize: 13, color: '#64748B' }}>{t[0]}</Text>
+          </Box>
+        ))}
+      </Box>
+      <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.45 }}>
+        让 feat 和 test 交替出现，每个功能提交都自带它的验收——退到任何一个标签点，都是「功能完整 + 测试通过」的状态。
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 12 }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>打标签的三条硬规则</Text>
+      {['一次迁移能从空库跑到 head 并降回 base → 打', '状态机 17 条迁移全部实现且矩阵测试通过 → 打', '一组集成测试在真库上稳定通过两次 → 打'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#2563EB', fontWeight: 'bold', lineHeight: 1.5 }}>{i + 1}.</Text>
+          <Text style={{ fontSize: 16, color: '#1E293B', lineHeight: 1.5, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+      <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 12, marginTop: 4 }}>
+        <Text style={{ fontSize: 15, color: '#1E293B', lineHeight: 1.45 }}>
+          出问题时<span style={{ fontWeight: 'bold', color: '#B45309' }}>整体退回上一个标签</span>，不要在泥潭里逐个文件 checkout——AI 改动的关联性很强，你以为只改了 A，它顺手动了 B。
+        </Text>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

@@ -1,0 +1,33 @@
+<Slide style={{ padding: 60, background: '#0F172A' }}>
+  <Box style={{ flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+    <Text style={{ fontSize: 15, color: '#64748B', letterSpacing: 2 }}>
+      真实案例复盘
+    </Text>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.2 }}>
+      三个 bug 都不在函数里，在函数与函数之间
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#1E293B' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 10, flex: 1 }}>
+    {[
+      { n: '1', name: '列宽太窄', s: '真库 INSERT 直接报错', w: '内存替身不校验列宽', hot: false },
+      { n: '2', name: '在途上限失效', s: '已有 3 单还能抢第 4 单', w: '测试手填上下文，没走真实 SQL', hot: false },
+      { n: '3', name: '发单不落库', s: '接口 201，刷新后数据消失', w: '测试绕过 HTTP 层，测不到事务边界', hot: true },
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', gap: 14, alignItems: 'center', background: r.hot ? '#2A1414' : '#1E293B', border: `1px solid ${r.hot ? '#FCA5A5' : '#334155'}`, borderRadius: 8, padding: 13 }}>
+        <Text style={{ width: 30, fontSize: 20, fontWeight: 'bold', color: r.hot ? '#FCA5A5' : '#64748B' }}>{r.n}</Text>
+        <Text style={{ width: 160, fontSize: 18, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.3 }}>{r.name}</Text>
+        <Text style={{ flex: 1, fontSize: 16, color: '#E2E8F0', lineHeight: 1.4 }}>{r.s}</Text>
+        <Text style={{ width: 260, fontSize: 15, color: '#94A3B8', lineHeight: 1.4 }}>{r.w}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ marginTop: 22, alignItems: 'center', gap: 6 }}>
+    <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#F59E0B', lineHeight: 1.4, textAlign: 'center' }}>
+      它们分别在「代码与数据库」「两次 SQL」「请求与事务」之间
+    </Text>
+    <Text style={{ fontSize: 16, color: '#94A3B8', lineHeight: 1.4, textAlign: 'center' }}>
+      而这三处，恰好都是单元测试的盲区——因为它天然会绕开这些边界。
+    </Text>
+  </Box>
+</Slide>

@@ -1,0 +1,34 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 18 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      复现步骤（上）：环境与骨架，约 2 天
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 4, flex: 1 }}>
+    {[
+      ['1', '装 Docker，起 PG 16 + Redis 7', 'docker compose up 后 select version() 返回 16.x'],
+      ['2', '建仓库，写 README + 分支与提交规范', '提交信息能被一眼看懂'],
+      ['3', '用 Prompt 1（第 6 页）做架构设计', '产出 5 项：模块/DDL/索引/并发/不做'],
+      ['4', '建目录骨架 + 配置 + 日志 + /health', 'curl /health 返回 200'],
+      ['5', '写 14 张数据模型 + 初始迁移', 'upgrade head 成功，且能 downgrade base 再回来'],
+      ['6', '写配置种子（参数化）', '改一行配置，不用重启就生效'],
+      ['7', '写错误码 + 统一响应信封', '故意抛一个异常，返回结构符合信封'],
+      ['8', '写列宽自检（Prompt 3，第 11 页）', '先故意改坏一列，看它必须失败'],
+      ['9', '打第一个标签', 'git tag 能看到'],
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', borderBottom: '1px solid #F1F5F9', paddingVertical: 5 }}>
+        <Box style={{ width: 26, height: 26, background: r[0] === '8' ? '#F59E0B' : '#2563EB', borderRadius: 13, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#FFFFFF' }}>{r[0]}</Text>
+        </Box>
+        <Text style={{ flex: 1, fontSize: 15, color: '#1E293B', lineHeight: 1.4 }}>{r[1]}</Text>
+        <Text style={{ flex: 1.2, fontSize: 14, color: '#64748B', lineHeight: 1.4, fontFamily: 'Consolas, monospace' }}>{r[2]}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 12, marginTop: 12 }}>
+    <Text style={{ fontSize: 15, color: '#1E293B', lineHeight: 1.45 }}>
+      <span style={{ fontWeight: 'bold', color: '#B45309' }}>第 8 步放在这里而不是最后</span>——它越早存在，收益越大；第 5 步的「能降回 base」很重要：只有前进没有回退的迁移，改一次表就得重建库。
+    </Text>
+  </Box>
+</Slide>

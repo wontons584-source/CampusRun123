@@ -1,0 +1,32 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      Prompt 3 · 不要问「还有问题吗」，给它能失败的判据
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1.2, background: '#0F172A', borderRadius: 10, padding: 20, justifyContent: 'center' }}>
+      <Text style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5, color: '#E2E8F0', lineHeight: 1.55 }}>
+        {'【任务】设计一个纯模型层测试文件，\n把"枚举列宽不足"这类问题钉死\n\n【必须覆盖 5 条断言】\n1. 每个枚举列：最长取值 <= 列声明长度\n2. 每列 String：必须登记为枚举列或自由文本列\n3. 登记表每个键必须真实存在于模型\n4. 登记表枚举值 == 生成列 SQL 表达式\n5. 剩余宽度钉成快照，新值吃掉余量就失败\n\n【硬约束】不许 connect DB / mock / 读迁移\n\n【验收】先故意改坏一列，跑给我看必须失败；\n再改回来，跑给我看必须通过'}
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
+      <Box style={{ background: '#EFF6FF', borderRadius: 8, padding: 14, gap: 6 }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>关键在最后一段</Text>
+        <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.45 }}>
+          只让它「写测试」，它会写一堆必然通过的断言；要求「先红后绿」，它才会真的验证自己的测试有效。
+        </Text>
+      </Box>
+      <Box style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 8, padding: 14, gap: 6 }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.3 }}>第 2 条断言是核心</Text>
+        <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.45 }}>
+          前几条是修当下，第 2 条是<span style={{ fontWeight: 'bold', color: '#2563EB' }}>防未来</span>——新增一列不登记，测试直接跑不过。这是闸门，不是补丁。
+        </Text>
+      </Box>
+      <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5 }}>
+        实际产出：370 行，覆盖 14 张表所有 String 列。
+      </Text>
+    </Box>
+  </Box>
+</Slide>

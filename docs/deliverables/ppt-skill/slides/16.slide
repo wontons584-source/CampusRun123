@@ -1,0 +1,31 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 18 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      我踩过的七个坑，你可以直接跳过
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 6, flex: 1 }}>
+    {[
+      { n: '1', a: '一次让它改 5 个文件', b: '出问题不知道哪一处', c: '一次一个任务', hot: false },
+      { n: '2', a: '问「还有问题吗」', b: '回答「没有」或一堆无关的', c: '给它能失败的判据', hot: false },
+      { n: '3', a: '相信「测试全部通过」', b: '三次全绿，三次都是事后才发现的', c: '自己在真库跑一遍', hot: false },
+      { n: '4', a: '让它「优化一下结构」', b: '顺手改掉你不想要的', c: '明确只改 X，不许动 Y', hot: false },
+      { n: '5', a: '跳过文档回写', b: '四处文档与实现对不上', c: '代码改完立刻回写', hot: false },
+      { n: '6', a: '术语在多处各写一遍', b: '45 分钟双出口死锁', c: '定义只写一处，其他只引用', hot: true },
+      { n: '7', a: '用「最佳实践」当理由', b: '无法反驳也无法执行', c: '要求「因为…所以…」', hot: false },
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', background: r.hot ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${r.hot ? '#FECACA' : '#E5E7EB'}`, borderRadius: 8, padding: 8 }}>
+        <Text style={{ width: 24, fontSize: 16, fontWeight: 'bold', color: r.hot ? '#DC2626' : '#94A3B8' }}>{r.n}</Text>
+        <Text style={{ flex: 1, fontSize: 15, color: '#1E293B', lineHeight: 1.4 }}>{r.a}</Text>
+        <Text style={{ flex: 1, fontSize: 15, color: '#64748B', lineHeight: 1.4 }}>{r.b}</Text>
+        <Text style={{ flex: 1, fontSize: 15, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.4 }}>{r.c}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 12, marginTop: 14 }}>
+    <Text style={{ fontSize: 15, color: '#1E293B', lineHeight: 1.45 }}>
+      第 6 条是最贵的一条：它不是浪费时间，它是<span style={{ fontWeight: 'bold', color: '#B45309' }}>制造死锁</span>——「进度」这个词在两处被写成两个意思，就是双出口死锁的根因。
+    </Text>
+  </Box>
+</Slide>

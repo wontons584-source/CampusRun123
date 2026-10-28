@@ -1,0 +1,30 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      阶段⑤ 验证：它会给你发合格证，签发人也是它
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 16, flex: 1 }}>
+    {[
+      { s: '「测试全部通过」', m: '它写的测试通过了', c: '低', w: '它会绕过自己实现不了的东西', col: '#DC2626' },
+      { s: '「已处理边界情况」', m: '它想到了 45 分钟', c: '中', w: '没想到 44 分 59 秒和从未被抢单', col: '#F59E0B' },
+      { s: '「符合最佳实践」', m: '训练数据里有类似代码', c: '很低', w: '这类话没有任何信息量', col: '#94A3B8' },
+    ].map((r, i) => (
+      <Box key={i} style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 10, padding: 20, gap: 10 }}>
+        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.35 }}>{r.s}</Text>
+        <Text style={{ fontSize: 15, color: '#64748B', lineHeight: 1.45 }}>{r.m}</Text>
+        <Box style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: r.col, lineHeight: 1 }}>{r.c}</Text>
+          <Text style={{ fontSize: 14, color: '#94A3B8' }}>可信度</Text>
+        </Box>
+        <Text style={{ fontSize: 14, color: '#64748B', lineHeight: 1.4 }}>{r.w}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#EFF6FF', borderRadius: 8, padding: 16, marginTop: 20 }}>
+    <Text style={{ fontSize: 16, color: '#1E293B', lineHeight: 1.5 }}>
+      结构性原因：它验证的是<span style={{ fontWeight: 'bold' }}>代码的自洽性</span>，不是<span style={{ fontWeight: 'bold' }}>环境的约束</span>。它用内存替身绕过真实依赖，而 bug 常常藏在被绕过的那个地方——它没有「这一列多宽」这种记忆。
+    </Text>
+  </Box>
+</Slide>

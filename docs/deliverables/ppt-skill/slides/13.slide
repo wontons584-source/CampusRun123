@@ -1,0 +1,33 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 22 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      技巧①：把「应该」换成「等于」
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 12, flex: 1 }}>
+    {[
+      { t: '愿望', e: '抢单要防止并发', j: '不能验收', c: '#94A3B8' },
+      { t: '标准', e: '抢单时只能有一个人成功', j: '勉强，靠人判断', c: '#F59E0B' },
+      { t: '判据', e: '100 并发后 count(*) WHERE status=IN_PROGRESS == 1，其余 99 个返回 40901', j: '能红能绿，交给机器', c: '#15803D' },
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 16, background: '#F8FAFC', border: `1px solid ${r.c}`, borderRadius: 10, padding: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: r.c, width: 70, lineHeight: 1.3 }}>{r.t}</Text>
+        <Text style={{ fontSize: 16, color: '#1E293B', flex: 1, lineHeight: 1.45 }}>{r.e}</Text>
+        <Text style={{ fontSize: 15, color: r.c, fontWeight: 'bold', width: 140, lineHeight: 1.4 }}>{r.j}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 16, marginTop: 20 }}>
+    {[
+      { t: '数据库层', d: '唯一约束 + 部分索引 → 脏数据插不进去' },
+      { t: '状态机层', d: '状态 × 动作矩阵穷举 → 非法迁移抛特定码' },
+      { t: '接口层', d: '错误码契约 → 拒绝时返回具体那个码' },
+    ].map((r, i) => (
+      <Box key={i} style={{ flex: 1, background: '#EFF6FF', borderRadius: 8, padding: 14, gap: 4 }}>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>{r.t}</Text>
+        <Text style={{ fontSize: 14, color: '#64748B', lineHeight: 1.4 }}>{r.d}</Text>
+      </Box>
+    ))}
+  </Box>
+</Slide>

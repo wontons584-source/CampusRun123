@@ -1,0 +1,24 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
+    <Box style={{ width: 72, height: 8, background: '#2563EB', borderRadius: 4 }} />
+    <Text style={{ fontSize: 52, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      技能分析 · AI 协作开发的 6 个阶段
+    </Text>
+    <Text style={{ fontSize: 22, color: '#64748B', lineHeight: 1.5 }}>
+      以 CampusRun（校园跑腿系统）为例，从 0 到 1 的可复现流程
+    </Text>
+    <Text style={{ fontSize: 17, color: '#94A3B8', lineHeight: 1.5 }}>
+      1 个人 · 36 次提交 · 707 passed（615 单元 + 92 集成，截至 10 月 29 日）
+    </Text>
+    <Box style={{ marginTop: 12, background: '#EFF6FF', borderRadius: 8, padding: 16 }}>
+      <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5 }}>
+        AI 能把「写代码」的耗时压缩一半，但它会把「验证」的难度放大一倍。
+        省下来的时间必须投到验证上，不然是净亏。
+      </Text>
+    </Box>
+  </Box>
+  <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E5E7EB', paddingTop: 20 }}>
+    <Text style={{ fontSize: 14, color: '#94A3B8' }}>工程项目认知实践 · 技能分析</Text>
+    <Text style={{ fontSize: 14, color: '#94A3B8' }}>2026-10-29</Text>
+  </Box>
+</Slide>

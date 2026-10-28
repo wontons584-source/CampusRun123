@@ -1,0 +1,42 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      如果重来一次，我会这么分配时间
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 0, flex: 1 }}>
+    <Box style={{ flexDirection: 'row', gap: 12, background: '#F8FAFC', borderRadius: 8, padding: 10 }}>
+      <Text style={{ flex: 1.4, fontSize: 15, fontWeight: 'bold', color: '#64748B' }}>阶段</Text>
+      <Text style={{ flex: 1, fontSize: 15, fontWeight: 'bold', color: '#64748B' }}>实际用时</Text>
+      <Text style={{ flex: 1, fontSize: 15, fontWeight: 'bold', color: '#2563EB' }}>如果重来</Text>
+      <Text style={{ flex: 1.6, fontSize: 15, fontWeight: 'bold', color: '#64748B' }}>差异原因</Text>
+    </Box>
+    {[
+      ['需求 + 架构（文档）', '约 1.5 天', '1 天', '文档不用写到 7 万字'],
+      ['骨架 + 数据模型', '约 1 天', '0.5 天', '用 Prompt 3 从第一天卡住列宽'],
+      ['状态机 + 守卫', '约 1 天', '0.5 天', '用 Prompt 2 把术语定义写清'],
+      ['仓储 + 并发', '约 1.5 天', '1 天', '已知道锁的必要性'],
+      ['验证与返工', '约 1 天', '0.5 天', '事故成本可以省掉'],
+      ['文档回写', '0.5 天', '0.5 天', '省不掉，只能提早做'],
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', borderBottom: '1px solid #F1F5F9', paddingVertical: 7 }}>
+        <Text style={{ flex: 1.4, fontSize: 16, color: '#1E293B', lineHeight: 1.4 }}>{r[0]}</Text>
+        <Text style={{ flex: 1, fontSize: 15, color: '#64748B', lineHeight: 1.4 }}>{r[1]}</Text>
+        <Text style={{ flex: 1, fontSize: 15, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.4 }}>{r[2]}</Text>
+        <Text style={{ flex: 1.6, fontSize: 14, color: '#64748B', lineHeight: 1.4 }}>{r[3]}</Text>
+      </Box>
+    ))}
+    <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center', background: '#EFF6FF', borderRadius: 8, padding: 10, marginTop: 8 }}>
+      <Text style={{ flex: 1.4, fontSize: 16, fontWeight: 'bold', color: '#1E293B' }}>合计</Text>
+      <Text style={{ flex: 1, fontSize: 16, fontWeight: 'bold', color: '#DC2626' }}>约 6.5 天</Text>
+      <Text style={{ flex: 1, fontSize: 16, fontWeight: 'bold', color: '#15803D' }}>约 4 天</Text>
+      <Text style={{ flex: 1.6, fontSize: 14, color: '#64748B' }}>省下 2.5 天</Text>
+    </Box>
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 14, marginTop: 16 }}>
+    <Text style={{ fontSize: 16, color: '#1E293B', lineHeight: 1.5, textAlign: 'center' }}>
+      结论：<span style={{ fontWeight: 'bold', color: '#B45309' }}>AI 省下的是打字时间，返工时间取决于你写判据的水平。</span>
+    </Text>
+  </Box>
+</Slide>

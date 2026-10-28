@@ -1,0 +1,34 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 18 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      复现步骤（下）：核心与验证，约 3 天
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 4, flex: 1 }}>
+    {[
+      ['10', '状态迁移表逐行落地（17 条）', '状态 × 动作矩阵穷举，非法迁移返回特定码', false],
+      ['11', '写两个零人工出口守卫（Prompt 2）', '45 分 00 秒允许 / 44 分 59 秒拒绝', false],
+      ['12', '真实仓储：CAS + 序号 + 约束映射', '唯一索引冲突返回业务码，不是 500', false],
+      ['13', 'Redis + Lua：抢单锁 + 频控', '清掉脚本缓存后再抢，仍能正常工作', false],
+      ['14', '抢单接口：三道闸', '20 并发 → count(*) == 1', false],
+      ['15', '发单接口：敏感字段加密 + 区间校验', '库里查不到明文取件码', false],
+      ['16', '注册登录 + 大厅 + 详情', '游标分页翻到最后一页不重不漏', false],
+      ['17', '所有结论在真 PG + 真 Redis 上重跑', '全绿，且是你自己跑过', true],
+      ['18', '回写文档，删掉过期内容；打标签', '文档里的数字与仓库一致', false],
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', background: r[3] ? '#EFF6FF' : 'transparent', border: r[3] ? '1px solid #BFDBFE' : 'none', borderBottom: r[3] ? '1px solid #BFDBFE' : '1px solid #F1F5F9', borderRadius: r[3] ? 8 : 0, paddingVertical: 5, paddingHorizontal: r[3] ? 10 : 0 }}>
+        <Box style={{ width: 26, height: 26, background: r[3] ? '#2563EB' : '#94A3B8', borderRadius: 13, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#FFFFFF' }}>{r[0]}</Text>
+        </Box>
+        <Text style={{ flex: 1, fontSize: 15, color: '#1E293B', lineHeight: 1.4 }}>{r[1]}</Text>
+        <Text style={{ flex: 1.2, fontSize: 14, color: '#64748B', lineHeight: 1.4, fontFamily: 'Consolas, monospace' }}>{r[2]}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#2563EB', borderRadius: 8, padding: 12, marginTop: 12 }}>
+    <Text style={{ fontSize: 15, color: '#FFFFFF', lineHeight: 1.45 }}>
+      第 17 步是整份清单里最重要的一步：<span style={{ fontWeight: 'bold' }}>不是「跑过」，是「你自己跑过」</span>——这两个差得很远。
+    </Text>
+  </Box>
+</Slide>

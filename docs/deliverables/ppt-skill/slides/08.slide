@@ -1,0 +1,29 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      阶段④ 编码：Prompt 2 · 让 AI 写最容易写错的部分
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1.2, background: '#0F172A', borderRadius: 10, padding: 20, justifyContent: 'center' }}>
+      <Text style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5, color: '#E2E8F0', lineHeight: 1.55 }}>
+        {'【任务】实现订单状态机守卫，必须是纯函数：\n(order, actor, payload, cfg) -> bool\n不碰数据库、网络、全局时钟\n\n【唯一事实来源】状态迁移表 17 行，\n逐行实现，编号对齐，不许合并、新增\n\n【本次只做两个守卫】\nA. 无责取消(T17)：进行中 + 发单人 +\n   接单人零进度 + 距抢单 >= 45 分钟\nB. 失联投诉(T16)：进行中 + 发单人 +\n   接单人有进度 + 距最后进度 >= 45 分钟\n\n【术语定义】接单人进度 = 动作∈{已取件,\n在路上,已送达,备注} 且 actor=接单人。\n发单人的催单不算进度。\n（否则两个出口同时不可走，比原 bug 更糟）\n\n【边界】45分00秒允许 / 44分59秒拒绝(42201)\n【输出】守卫 + 参数化测试 + 100字注释'}
+      </Text>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column', gap: 12, justifyContent: 'center' }}>
+      {[
+        { c: '纯函数', d: '才能穷举测试，不起数据库' },
+        { c: '唯一事实来源', d: '防它顺手「优化」掉一条迁移' },
+        { c: '术语定义 + 反例', d: '最关键——写清理解错了会怎样' },
+        { c: '边界显式列出', d: '不给边界，它只测 45 分那一秒' },
+        { c: '要求输出注释', d: '给三个月后的自己和 review 用' },
+      ].map((r, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10 }}>
+          <Text style={{ fontSize: 15, color: '#2563EB', fontWeight: 'bold', width: 130, lineHeight: 1.4 }}>{r.c}</Text>
+          <Text style={{ fontSize: 15, color: '#64748B', flex: 1, lineHeight: 1.4 }}>{r.d}</Text>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+</Slide>

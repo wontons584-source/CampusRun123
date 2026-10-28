@@ -1,0 +1,32 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      三个技巧，一条比一条贵
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 14, flex: 1 }}>
+    {[
+      { n: '①', t: '可验证护栏', d: '每条结论都要有一条能红能绿的断言', w: '从需求阶段就开始', c: '低', col: '#2563EB' },
+      { n: '②', t: '真库做裁判', d: '涉及数据库的结论必须在真 PG 上复现', w: '每个提交前', c: '中', col: '#F59E0B' },
+      { n: '③', t: '标签做回退点', d: '每完成一个可验收小块就打标签', w: '跨 3 个文件以上的改动前', c: '低', col: '#06B6D4' },
+    ].map((r, i) => (
+      <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 16, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 10, padding: 18 }}>
+        <Box style={{ width: 44, height: 44, background: r.col, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' }}>{r.n}</Text>
+        </Box>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B', width: 200, lineHeight: 1.3 }}>{r.t}</Text>
+        <Text style={{ fontSize: 16, color: '#64748B', flex: 1, lineHeight: 1.45 }}>{r.d}</Text>
+        <Box style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 2, width: 180 }}>
+          <Text style={{ fontSize: 13, color: '#94A3B8' }}>{r.w}</Text>
+          <Text style={{ fontSize: 15, fontWeight: 'bold', color: r.col }}>成本 {r.c}</Text>
+        </Box>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#EFF6FF', borderRadius: 8, padding: 16, marginTop: 22 }}>
+    <Text style={{ fontSize: 18, color: '#1E293B', lineHeight: 1.5, textAlign: 'center' }}>
+      三个技巧合起来解决同一件事：让「我以为」变成「我验过」。
+    </Text>
+  </Box>
+</Slide>

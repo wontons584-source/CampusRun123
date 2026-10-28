@@ -1,0 +1,29 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      阶段③ 骨架：一次只搭一层，每层都要能跑
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'column', gap: 14, flex: 1 }}>
+    {[
+      { n: '1', t: '目录 + 配置 + 日志', d: '一个 /health 能返回 200', c: '#2563EB' },
+      { n: '2', t: '数据模型 + 初始迁移', d: 'alembic upgrade head 成功，且能 downgrade base 再回来', c: '#2563EB' },
+      { n: '3', t: '错误码 + 统一响应信封', d: '故意抛一个业务异常，返回结构符合信封', c: '#2563EB' },
+      { n: '4', t: '游标分页 + 可注入时钟', d: '这两个是以后所有代码都要用的地基', c: '#F59E0B' },
+    ].map((l, i) => (
+      <Box key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 40, height: 40, background: l.c, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>{l.n}</Text>
+        </Box>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#1E293B', width: 280, lineHeight: 1.3 }}>{l.t}</Text>
+        <Text style={{ fontSize: 16, color: '#64748B', flex: 1, lineHeight: 1.45 }}>{l.d}</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 16, marginTop: 22 }}>
+    <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5 }}>
+      <span style={{ fontWeight: 'bold', color: '#B45309' }}>第 4 层最容易被推迟，代价最大。</span>错误码晚做，后面每个接口都要回头改；时钟注入晚做，所有关于「45 分钟」的超时逻辑都没法测——因为测试没法让系统认为现在是 45 分钟以后。
+    </Text>
+  </Box>
+</Slide>

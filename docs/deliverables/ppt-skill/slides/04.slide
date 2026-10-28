@@ -1,0 +1,33 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 22 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      谁负责什么，边界要写死
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1, background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>我负责 · 不可外包</Text>
+      {['判定「什么算对」——判据、断言', '边界条件的枚举（0 秒 / 45 分 / 45 分零 1 秒）', '真实环境的约束（列宽、隔离级别、锁）', '数据模型与索引的取舍', '最后的验收签字'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#2563EB', fontWeight: 'bold', lineHeight: 1.5 }}>▸</Text>
+          <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#64748B', lineHeight: 1.3 }}>AI 负责 · 可放心交</Text>
+      {['按判据写出实现', '把边界写成参数化测试', '把约束翻译成 SQL / 迁移', '生成迁移脚本与索引 DDL', '自查、补充遗漏分支、写注释'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#64748B', fontWeight: 'bold', lineHeight: 1.5 }}>▸</Text>
+          <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Box style={{ background: '#FEF3C7', borderRadius: 8, padding: 16, marginTop: 22 }}>
+    <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5 }}>
+      一条硬规矩：<span style={{ fontWeight: 'bold', color: '#B45309' }}>AI 说「已通过」不构成验收，我只认我自己跑出来的结果。</span>因为它既当运动员又当裁判，第 10 页那次事故就是这么发生的。
+    </Text>
+  </Box>
+</Slide>

@@ -1,0 +1,33 @@
+<Slide style={{ padding: 60, background: '#FFFFFF' }}>
+  <Box style={{ flexDirection: 'column', gap: 12, marginBottom: 22 }}>
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1E293B', lineHeight: 1.2 }}>
+      不是「要不要用 AI」，是「用了以后哪些事变了」
+    </Text>
+    <Box style={{ width: '100%', height: 1, background: '#E5E7EB' }} />
+  </Box>
+  <Box style={{ flexDirection: 'row', gap: 24, flex: 1 }}>
+    <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#2563EB', lineHeight: 1.3 }}>变了的事</Text>
+      {['写代码从「敲」变成「审」——阅读量占比从 30% 涨到 70%', '试错成本极低，所以你更容易一次改 5 个地方，然后全乱', '它写测试比人快，所以你会误以为测试覆盖度提高了'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#2563EB', fontWeight: 'bold', lineHeight: 1.5 }}>▸</Text>
+          <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+    <Box style={{ flex: 1, background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#64748B', lineHeight: 1.3 }}>没变的事</Text>
+      {['需求边界不清 → 还是要返工', '边界条件没想明白 → 它会给你一个「看起来对」的实现', '真实环境的约束（列宽、事务隔离、锁）→ 它不会替你想'].map((s, i) => (
+        <Box key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ fontSize: 16, color: '#64748B', fontWeight: 'bold', lineHeight: 1.5 }}>▸</Text>
+          <Text style={{ fontSize: 17, color: '#1E293B', lineHeight: 1.5, flex: 1 }}>{s}</Text>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+  <Box style={{ background: '#2563EB', borderRadius: 8, padding: 16, marginTop: 22 }}>
+    <Text style={{ fontSize: 20, color: '#FFFFFF', lineHeight: 1.5 }}>
+      核心主张：<span style={{ fontWeight: 'bold' }}>把 AI 当「实现者」，不要当「验收者」</span>——验收标准必须由人写，且必须是能跑、能红、能绿的断言。
+    </Text>
+  </Box>
+</Slide>
