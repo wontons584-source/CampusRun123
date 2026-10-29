@@ -196,9 +196,9 @@ export function OrderDetailPage(): JSX.Element {
   }
 
   const isPublisher = detail.publisher_id === user?.id;
-  // 后端 available_actions 目前只做角色层过滤（会多报节点、也可能夹带 NOTE/CANCEL 类码），
-  // 这里用「白名单 + 时间轴」收敛成唯一的下一个合法动作，保证点了必成功。
-  const actions = resolveOrderActions(detail, timelineNodes);
+  // 后端 available_actions 已是守卫层精度（只含点了会成功的动作），
+  // 这里只做白名单过滤，滤掉 NOTE / URGE / REQUEST_CANCEL 等非主按钮码。
+  const actions = resolveOrderActions(detail);
   // 取件码：以后端权威掩码位为准，兼容历史形态（null / 空串 / 含 * 的掩码）
   const pickCodeVisible =
     detail.pick_code_masked !== true &&
