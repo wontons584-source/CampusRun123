@@ -71,10 +71,13 @@ PROGRESS_ACTIONS: Final[frozenset[Action]] = frozenset(
 class OrderService:
     """发单 / 订单查询的领域入口。"""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, *, clock: Any = None) -> None:
         self._db = db
         self._repo = SqlOrderRepo(db)
         self._cfg = ConfigService(db)
+        #: 可注入时钟（与 `SqlOrderRepo` 对齐）：测试传 `FrozenClock` 即可冻结
+        #: 整个 service 层的时间，不必逐个方法传 `now`。默认回落进程时钟。
+        self._clock = clock or default_clock
 
     # ------------------------------------------------------------------ 发单
     def create_order(
@@ -100,7 +103,7 @@ class OrderService:
         3. 发单窗 + 待接单上限（`guard_create`，复用状态机守卫，不重写口径）
         4. 生成订单号 → 加密取件码 → `repo.create_order`
         """
-        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        moment = self._clock.to_utc(now) if now is not None else self._clock.now()
         cfg = self._thresholds()
 
         # ---- 1. 取件码 ----
@@ -229,7 +232,7 @@ class OrderService:
             ApiError: 404/40401、403/40301、403/40303、409/40901、409/40902、
                 409/40903、422/42201、503/50300。
         """
-        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        moment = self._clock.to_utc(now) if now is not None else self._clock.now()
         cfg = self._thresholds()
 
         # ---- 0. 先做零成本的前置判定，把 90% 的失败挡在 Redis 之外 ----
@@ -348,7 +351,7 @@ class OrderService:
         Raises:
             ApiError: 404/40401、403/40310、422/42201。
         """
-        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        moment = self._clock.to_utc(now) if now is not None else self._clock.now()
         act = action if isinstance(action, Action) else Action(str(action))
         if act not in PROGRESS_ACTIONS and act is not Action.NOTE:
             # 白名单外的一律拒（例如 DELIVER 之外的 CONFIRM 不该从这个入口进来）
@@ -383,7 +386,7 @@ class OrderService:
         Raises:
             ApiError: 404/40401、403/40310、422/42201。
         """
-        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        moment = self._clock.to_utc(now) if now is not None else self._clock.now()
         ctx = self._repo.load_ctx(order_id)
         actor = actor_for(ctx, user_id, is_verified=is_verified)
         return apply(
@@ -410,7 +413,7 @@ class OrderService:
         对他自己的单是 `["CANCEL"]`（发单人才能取消）。前端据此渲染按钮，
         不必自己复制一份"什么状态能接单"的规则。
         """
-        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        moment = self._clock.to_utc(now) if now is not None else self._clock.now()
         cfg = self._thresholds()
         # 在途数按**当前用户**查一次、整页共用：50 条各查一次就是 50 次往返，
         # 而它和具体哪一单无关（BR-16 是"这个人手上有几单"）。
@@ -505,7 +508,7 @@ class OrderService:
             is_verified: 认证标记（写进 `Actor`）。
             now: 观察时刻（测试注入；默认进程时钟）。T16/T17 的 45 分钟边界靠它。
         """
-        moment = default_clock.to_utc(now) if now is not None else default_clock.now()
+        moment = self._clock.to_utc(now) if now is not None else self._clock.now()
         ctx = self._repo.load_ctx(order_id, viewer_id=user_id)   # 不存在 → 404/40401
         detail = load_detail(self._db, order_id)
         actor = actor_for(ctx, user_id, is_verified=is_verified)
@@ -539,7 +542,7 @@ class OrderService:
         其余（30/60/120）→ `now + expect_minutes`。
         """
         if expect_minutes == 720:
-            local = default_clock.to_local(moment)
+            local = self._clock.to_local(moment)
             end_of_day = local.replace(hour=23, minute=0, second=0, microsecond=0)
             return end_of_day.astimezone(datetime.UTC)
         return moment + datetime.timedelta(minutes=expect_minutes)
